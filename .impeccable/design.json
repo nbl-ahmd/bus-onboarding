@@ -1,0 +1,669 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T15:11:27.603Z",
+  "title": "Design System: Nightline quick play",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Background",
+        "tonalRamp": [
+          "oklch(15% 0.0045 258.32)",
+          "oklch(26% 0.0045 258.32)",
+          "oklch(38% 0.0045 258.32)",
+          "oklch(49% 0.0045 258.32)",
+          "oklch(61% 0.0045 258.32)",
+          "oklch(72% 0.0045 258.32)",
+          "oklch(84% 0.0045 258.32)",
+          "oklch(95% 0.0045 258.32)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(26% 0.0000 89.88)",
+          "oklch(38% 0.0000 89.88)",
+          "oklch(49% 0.0000 89.88)",
+          "oklch(61% 0.0000 89.88)",
+          "oklch(72% 0.0000 89.88)",
+          "oklch(84% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Surface Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0034 247.86)",
+          "oklch(26% 0.0034 247.86)",
+          "oklch(38% 0.0034 247.86)",
+          "oklch(49% 0.0034 247.86)",
+          "oklch(61% 0.0034 247.86)",
+          "oklch(72% 0.0034 247.86)",
+          "oklch(84% 0.0034 247.86)",
+          "oklch(95% 0.0034 247.86)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0412 242.76)",
+          "oklch(26% 0.0412 242.76)",
+          "oklch(38% 0.0412 242.76)",
+          "oklch(49% 0.0412 242.76)",
+          "oklch(61% 0.0412 242.76)",
+          "oklch(72% 0.0412 242.76)",
+          "oklch(84% 0.0412 242.76)",
+          "oklch(95% 0.0412 242.76)"
+        ]
+      },
+      "ink-strong": {
+        "role": "neutral",
+        "displayName": "Ink Strong",
+        "tonalRamp": [
+          "oklch(15% 0.0415 244.42)",
+          "oklch(26% 0.0415 244.42)",
+          "oklch(38% 0.0415 244.42)",
+          "oklch(49% 0.0415 244.42)",
+          "oklch(61% 0.0415 244.42)",
+          "oklch(72% 0.0415 244.42)",
+          "oklch(84% 0.0415 244.42)",
+          "oklch(95% 0.0415 244.42)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0290 244.75)",
+          "oklch(26% 0.0290 244.75)",
+          "oklch(38% 0.0290 244.75)",
+          "oklch(49% 0.0290 244.75)",
+          "oklch(61% 0.0290 244.75)",
+          "oklch(72% 0.0290 244.75)",
+          "oklch(84% 0.0290 244.75)",
+          "oklch(95% 0.0290 244.75)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15% 0.0097 252.81)",
+          "oklch(26% 0.0097 252.81)",
+          "oklch(38% 0.0097 252.81)",
+          "oklch(49% 0.0097 252.81)",
+          "oklch(61% 0.0097 252.81)",
+          "oklch(72% 0.0097 252.81)",
+          "oklch(84% 0.0097 252.81)",
+          "oklch(95% 0.0097 252.81)"
+        ]
+      },
+      "nav": {
+        "role": "neutral",
+        "displayName": "Nav",
+        "tonalRamp": [
+          "oklch(15% 0.0633 245.99)",
+          "oklch(26% 0.0633 245.99)",
+          "oklch(38% 0.0633 245.99)",
+          "oklch(49% 0.0633 245.99)",
+          "oklch(61% 0.0633 245.99)",
+          "oklch(72% 0.0633 245.99)",
+          "oklch(84% 0.0633 245.99)",
+          "oklch(95% 0.0633 245.99)"
+        ]
+      },
+      "nav-muted": {
+        "role": "neutral",
+        "displayName": "Nav Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0376 241.92)",
+          "oklch(26% 0.0376 241.92)",
+          "oklch(38% 0.0376 241.92)",
+          "oklch(49% 0.0376 241.92)",
+          "oklch(61% 0.0376 241.92)",
+          "oklch(72% 0.0376 241.92)",
+          "oklch(84% 0.0376 241.92)",
+          "oklch(95% 0.0376 241.92)"
+        ]
+      },
+      "nav-active": {
+        "role": "neutral",
+        "displayName": "Nav Active",
+        "tonalRamp": [
+          "oklch(15% 0.0615 240.27)",
+          "oklch(26% 0.0615 240.27)",
+          "oklch(38% 0.0615 240.27)",
+          "oklch(49% 0.0615 240.27)",
+          "oklch(61% 0.0615 240.27)",
+          "oklch(72% 0.0615 240.27)",
+          "oklch(84% 0.0615 240.27)",
+          "oklch(95% 0.0615 240.27)"
+        ]
+      },
+      "brand": {
+        "role": "primary",
+        "displayName": "Brand",
+        "tonalRamp": [
+          "oklch(15% 0.0844 180.86)",
+          "oklch(26% 0.0844 180.86)",
+          "oklch(38% 0.0844 180.86)",
+          "oklch(49% 0.0844 180.86)",
+          "oklch(61% 0.0844 180.86)",
+          "oklch(72% 0.0844 180.86)",
+          "oklch(84% 0.0844 180.86)",
+          "oklch(95% 0.0844 180.86)"
+        ]
+      },
+      "brand-hover": {
+        "role": "primary",
+        "displayName": "Brand Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0727 181.89)",
+          "oklch(26% 0.0727 181.89)",
+          "oklch(38% 0.0727 181.89)",
+          "oklch(49% 0.0727 181.89)",
+          "oklch(61% 0.0727 181.89)",
+          "oklch(72% 0.0727 181.89)",
+          "oklch(84% 0.0727 181.89)",
+          "oklch(95% 0.0727 181.89)"
+        ]
+      },
+      "brand-soft": {
+        "role": "primary",
+        "displayName": "Brand Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0149 164.73)",
+          "oklch(26% 0.0149 164.73)",
+          "oklch(38% 0.0149 164.73)",
+          "oklch(49% 0.0149 164.73)",
+          "oklch(61% 0.0149 164.73)",
+          "oklch(72% 0.0149 164.73)",
+          "oklch(84% 0.0149 164.73)",
+          "oklch(95% 0.0149 164.73)"
+        ]
+      },
+      "mint": {
+        "role": "primary",
+        "displayName": "Mint",
+        "tonalRamp": [
+          "oklch(15% 0.0525 167.06)",
+          "oklch(26% 0.0525 167.06)",
+          "oklch(38% 0.0525 167.06)",
+          "oklch(49% 0.0525 167.06)",
+          "oklch(61% 0.0525 167.06)",
+          "oklch(72% 0.0525 167.06)",
+          "oklch(84% 0.0525 167.06)",
+          "oklch(95% 0.0525 167.06)"
+        ]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Warning",
+        "tonalRamp": [
+          "oklch(15% 0.1106 66.66)",
+          "oklch(26% 0.1106 66.66)",
+          "oklch(38% 0.1106 66.66)",
+          "oklch(49% 0.1106 66.66)",
+          "oklch(61% 0.1106 66.66)",
+          "oklch(72% 0.1106 66.66)",
+          "oklch(84% 0.1106 66.66)",
+          "oklch(95% 0.1106 66.66)"
+        ]
+      },
+      "warning-soft": {
+        "role": "secondary",
+        "displayName": "Warning Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0237 79.75)",
+          "oklch(26% 0.0237 79.75)",
+          "oklch(38% 0.0237 79.75)",
+          "oklch(49% 0.0237 79.75)",
+          "oklch(61% 0.0237 79.75)",
+          "oklch(72% 0.0237 79.75)",
+          "oklch(84% 0.0237 79.75)",
+          "oklch(95% 0.0237 79.75)"
+        ]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Danger",
+        "tonalRamp": [
+          "oklch(15% 0.1439 21.37)",
+          "oklch(26% 0.1439 21.37)",
+          "oklch(38% 0.1439 21.37)",
+          "oklch(49% 0.1439 21.37)",
+          "oklch(61% 0.1439 21.37)",
+          "oklch(72% 0.1439 21.37)",
+          "oklch(84% 0.1439 21.37)",
+          "oklch(95% 0.1439 21.37)"
+        ]
+      },
+      "danger-soft": {
+        "role": "secondary",
+        "displayName": "Danger Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0162 17.44)",
+          "oklch(26% 0.0162 17.44)",
+          "oklch(38% 0.0162 17.44)",
+          "oklch(49% 0.0162 17.44)",
+          "oklch(61% 0.0162 17.44)",
+          "oklch(72% 0.0162 17.44)",
+          "oklch(84% 0.0162 17.44)",
+          "oklch(95% 0.0162 17.44)"
+        ]
+      },
+      "blue": {
+        "role": "secondary",
+        "displayName": "Blue",
+        "tonalRamp": [
+          "oklch(15% 0.0887 253.79)",
+          "oklch(26% 0.0887 253.79)",
+          "oklch(38% 0.0887 253.79)",
+          "oklch(49% 0.0887 253.79)",
+          "oklch(61% 0.0887 253.79)",
+          "oklch(72% 0.0887 253.79)",
+          "oklch(84% 0.0887 253.79)",
+          "oklch(95% 0.0887 253.79)"
+        ]
+      },
+      "blue-soft": {
+        "role": "secondary",
+        "displayName": "Blue Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0120 259.82)",
+          "oklch(26% 0.0120 259.82)",
+          "oklch(38% 0.0120 259.82)",
+          "oklch(49% 0.0120 259.82)",
+          "oklch(61% 0.0120 259.82)",
+          "oklch(72% 0.0120 259.82)",
+          "oklch(84% 0.0120 259.82)",
+          "oklch(95% 0.0120 259.82)"
+        ]
+      },
+      "night-background": {
+        "role": "neutral",
+        "displayName": "Night Background",
+        "tonalRamp": [
+          "oklch(15% 0.0322 245.72)",
+          "oklch(26% 0.0322 245.72)",
+          "oklch(38% 0.0322 245.72)",
+          "oklch(49% 0.0322 245.72)",
+          "oklch(61% 0.0322 245.72)",
+          "oklch(72% 0.0322 245.72)",
+          "oklch(84% 0.0322 245.72)",
+          "oklch(95% 0.0322 245.72)"
+        ]
+      },
+      "night-surface": {
+        "role": "neutral",
+        "displayName": "Night Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0383 244.96)",
+          "oklch(26% 0.0383 244.96)",
+          "oklch(38% 0.0383 244.96)",
+          "oklch(49% 0.0383 244.96)",
+          "oklch(61% 0.0383 244.96)",
+          "oklch(72% 0.0383 244.96)",
+          "oklch(84% 0.0383 244.96)",
+          "oklch(95% 0.0383 244.96)"
+        ]
+      },
+      "night-surface-muted": {
+        "role": "neutral",
+        "displayName": "Night Surface Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0417 245.35)",
+          "oklch(26% 0.0417 245.35)",
+          "oklch(38% 0.0417 245.35)",
+          "oklch(49% 0.0417 245.35)",
+          "oklch(61% 0.0417 245.35)",
+          "oklch(72% 0.0417 245.35)",
+          "oklch(84% 0.0417 245.35)",
+          "oklch(95% 0.0417 245.35)"
+        ]
+      },
+      "night-ink": {
+        "role": "neutral",
+        "displayName": "Night Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0177 234.51)",
+          "oklch(26% 0.0177 234.51)",
+          "oklch(38% 0.0177 234.51)",
+          "oklch(49% 0.0177 234.51)",
+          "oklch(61% 0.0177 234.51)",
+          "oklch(72% 0.0177 234.51)",
+          "oklch(84% 0.0177 234.51)",
+          "oklch(95% 0.0177 234.51)"
+        ]
+      },
+      "night-ink-strong": {
+        "role": "neutral",
+        "displayName": "Night Ink Strong",
+        "tonalRamp": [
+          "oklch(15% 0.0083 236.56)",
+          "oklch(26% 0.0083 236.56)",
+          "oklch(38% 0.0083 236.56)",
+          "oklch(49% 0.0083 236.56)",
+          "oklch(61% 0.0083 236.56)",
+          "oklch(72% 0.0083 236.56)",
+          "oklch(84% 0.0083 236.56)",
+          "oklch(95% 0.0083 236.56)"
+        ]
+      },
+      "night-muted": {
+        "role": "neutral",
+        "displayName": "Night Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0307 240.29)",
+          "oklch(26% 0.0307 240.29)",
+          "oklch(38% 0.0307 240.29)",
+          "oklch(49% 0.0307 240.29)",
+          "oklch(61% 0.0307 240.29)",
+          "oklch(72% 0.0307 240.29)",
+          "oklch(84% 0.0307 240.29)",
+          "oklch(95% 0.0307 240.29)"
+        ]
+      },
+      "night-line": {
+        "role": "neutral",
+        "displayName": "Night Line",
+        "tonalRamp": [
+          "oklch(15% 0.0417 242.59)",
+          "oklch(26% 0.0417 242.59)",
+          "oklch(38% 0.0417 242.59)",
+          "oklch(49% 0.0417 242.59)",
+          "oklch(61% 0.0417 242.59)",
+          "oklch(72% 0.0417 242.59)",
+          "oklch(84% 0.0417 242.59)",
+          "oklch(95% 0.0417 242.59)"
+        ]
+      },
+      "night-nav": {
+        "role": "neutral",
+        "displayName": "Night Nav",
+        "tonalRamp": [
+          "oklch(15% 0.0504 245.38)",
+          "oklch(26% 0.0504 245.38)",
+          "oklch(38% 0.0504 245.38)",
+          "oklch(49% 0.0504 245.38)",
+          "oklch(61% 0.0504 245.38)",
+          "oklch(72% 0.0504 245.38)",
+          "oklch(84% 0.0504 245.38)",
+          "oklch(95% 0.0504 245.38)"
+        ]
+      },
+      "night-nav-active": {
+        "role": "neutral",
+        "displayName": "Night Nav Active",
+        "tonalRamp": [
+          "oklch(15% 0.0579 239.41)",
+          "oklch(26% 0.0579 239.41)",
+          "oklch(38% 0.0579 239.41)",
+          "oklch(49% 0.0579 239.41)",
+          "oklch(61% 0.0579 239.41)",
+          "oklch(72% 0.0579 239.41)",
+          "oklch(84% 0.0579 239.41)",
+          "oklch(95% 0.0579 239.41)"
+        ]
+      },
+      "night-brand": {
+        "role": "primary",
+        "displayName": "Night Brand",
+        "tonalRamp": [
+          "oklch(15% 0.0597 164.77)",
+          "oklch(26% 0.0597 164.77)",
+          "oklch(38% 0.0597 164.77)",
+          "oklch(49% 0.0597 164.77)",
+          "oklch(61% 0.0597 164.77)",
+          "oklch(72% 0.0597 164.77)",
+          "oklch(84% 0.0597 164.77)",
+          "oklch(95% 0.0597 164.77)"
+        ]
+      },
+      "night-brand-hover": {
+        "role": "primary",
+        "displayName": "Night Brand Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0429 162.42)",
+          "oklch(26% 0.0429 162.42)",
+          "oklch(38% 0.0429 162.42)",
+          "oklch(49% 0.0429 162.42)",
+          "oklch(61% 0.0429 162.42)",
+          "oklch(72% 0.0429 162.42)",
+          "oklch(84% 0.0429 162.42)",
+          "oklch(95% 0.0429 162.42)"
+        ]
+      },
+      "night-brand-soft": {
+        "role": "primary",
+        "displayName": "Night Brand Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0462 180.70)",
+          "oklch(26% 0.0462 180.70)",
+          "oklch(38% 0.0462 180.70)",
+          "oklch(49% 0.0462 180.70)",
+          "oklch(61% 0.0462 180.70)",
+          "oklch(72% 0.0462 180.70)",
+          "oklch(84% 0.0462 180.70)",
+          "oklch(95% 0.0462 180.70)"
+        ]
+      },
+      "night-warning": {
+        "role": "secondary",
+        "displayName": "Night Warning",
+        "tonalRamp": [
+          "oklch(15% 0.0832 79.47)",
+          "oklch(26% 0.0832 79.47)",
+          "oklch(38% 0.0832 79.47)",
+          "oklch(49% 0.0832 79.47)",
+          "oklch(61% 0.0832 79.47)",
+          "oklch(72% 0.0832 79.47)",
+          "oklch(84% 0.0832 79.47)",
+          "oklch(95% 0.0832 79.47)"
+        ]
+      },
+      "night-warning-soft": {
+        "role": "secondary",
+        "displayName": "Night Warning Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0213 75.75)",
+          "oklch(26% 0.0213 75.75)",
+          "oklch(38% 0.0213 75.75)",
+          "oklch(49% 0.0213 75.75)",
+          "oklch(61% 0.0213 75.75)",
+          "oklch(72% 0.0213 75.75)",
+          "oklch(84% 0.0213 75.75)",
+          "oklch(95% 0.0213 75.75)"
+        ]
+      },
+      "night-danger": {
+        "role": "secondary",
+        "displayName": "Night Danger",
+        "tonalRamp": [
+          "oklch(15% 0.0702 15.33)",
+          "oklch(26% 0.0702 15.33)",
+          "oklch(38% 0.0702 15.33)",
+          "oklch(49% 0.0702 15.33)",
+          "oklch(61% 0.0702 15.33)",
+          "oklch(72% 0.0702 15.33)",
+          "oklch(84% 0.0702 15.33)",
+          "oklch(95% 0.0702 15.33)"
+        ]
+      },
+      "night-danger-soft": {
+        "role": "secondary",
+        "displayName": "Night Danger Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0448 357.40)",
+          "oklch(26% 0.0448 357.40)",
+          "oklch(38% 0.0448 357.40)",
+          "oklch(49% 0.0448 357.40)",
+          "oklch(61% 0.0448 357.40)",
+          "oklch(72% 0.0448 357.40)",
+          "oklch(84% 0.0448 357.40)",
+          "oklch(95% 0.0448 357.40)"
+        ]
+      },
+      "night-blue": {
+        "role": "secondary",
+        "displayName": "Night Blue",
+        "tonalRamp": [
+          "oklch(15% 0.0568 258.37)",
+          "oklch(26% 0.0568 258.37)",
+          "oklch(38% 0.0568 258.37)",
+          "oklch(49% 0.0568 258.37)",
+          "oklch(61% 0.0568 258.37)",
+          "oklch(72% 0.0568 258.37)",
+          "oklch(84% 0.0568 258.37)",
+          "oklch(95% 0.0568 258.37)"
+        ]
+      },
+      "night-blue-soft": {
+        "role": "secondary",
+        "displayName": "Night Blue Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0519 251.31)",
+          "oklch(26% 0.0519 251.31)",
+          "oklch(38% 0.0519 251.31)",
+          "oklch(49% 0.0519 251.31)",
+          "oklch(61% 0.0519 251.31)",
+          "oklch(72% 0.0519 251.31)",
+          "oklch(84% 0.0519 251.31)",
+          "oklch(95% 0.0519 251.31)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Outfit headline",
+        "purpose": "Compact working-screen titles."
+      },
+      "body": {
+        "displayName": "Outfit UI",
+        "purpose": "Controls and ordinary reading."
+      },
+      "script-malayalam": {
+        "displayName": "Noto Sans Malayalam",
+        "purpose": "Malayalam passenger scripts."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating",
+        "value": "0 12px 38px -14px #142c4938",
+        "purpose": "Dialog, mobile preview, toast and global player."
+      },
+      {
+        "name": "script-tab",
+        "value": "0 1px 3px #18354912",
+        "purpose": "Active language tab."
+      }
+    ],
+    "motion": [
+      {
+        "name": "row-settle",
+        "value": "0.2s power2.out; 0.018s stagger; y:5px to 0",
+        "purpose": "GSAP row entry, disabled for reduced motion."
+      },
+      {
+        "name": "hold-edit",
+        "value": "480ms",
+        "purpose": "Optional long-press; movement cancels."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "single-column",
+        "value": "850px"
+      },
+      {
+        "name": "mobile",
+        "value": "600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Prepare or play an explicit action.",
+      "html": "<button class=\"ds-primary\">Play announcement</button>",
+      "css": ".ds-primary{background:var(--brand,#197568);color:#fff;border:0;border-radius:7px;padding:12px 18px;font:500 14px Outfit,Arial,sans-serif}.ds-primary:hover{background:var(--brand-hover,#125f55)}.ds-primary:focus-visible{outline:3px solid #56a496;outline-offset:3px}"
+    },
+    {
+      "name": "Secondary action",
+      "kind": "button",
+      "description": "Trip setup and secondary operations.",
+      "html": "<button class=\"ds-secondary\">Trip setup</button>",
+      "css": ".ds-secondary{background:var(--surface,#fff);color:var(--ink,#213748);border:1px solid var(--line,#e4e9ef);border-radius:7px;padding:10px 15px;font:500 12px Outfit,Arial,sans-serif}.ds-secondary:hover{background:var(--surface-muted,#f6f8fa)}.ds-secondary:focus-visible{outline:3px solid #56a496;outline-offset:3px}"
+    },
+    {
+      "name": "Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Manual facts and settings.",
+      "html": "<label class=\"ds-label\">Stop location<input class=\"ds-field\" value=\"Confirmed stop\" /></label>",
+      "css": ".ds-label{display:grid;gap:7px;font:500 12px Outfit,Arial,sans-serif;color:var(--ink,#213748)}.ds-field{border:1px solid var(--line,#e4e9ef);border-radius:6px;background:var(--surface,#fff);color:var(--ink,#213748);padding:10px 11px;font:400 13px Outfit,Arial,sans-serif}.ds-field:focus-visible{outline:3px solid #56a496;outline-offset:3px}"
+    },
+    {
+      "name": "Quick announcement",
+      "kind": "card",
+      "refersTo": "quick-row",
+      "description": "Direct play with a separate edit action.",
+      "html": "<div class=\"ds-row\"><button class=\"ds-play\">Welcome aboard <span>Play</span></button><button class=\"ds-edit\">Edit</button></div>",
+      "css": ".ds-row{display:flex;border:1px solid var(--line,#e4e9ef);border-radius:12px;background:var(--surface,#fff)}.ds-row:hover{border-color:#9bbdb2}.ds-play{display:flex;justify-content:space-between;gap:20px;flex:1;background:none;border:0;padding:23px 17px;font:500 15px Outfit,Arial,sans-serif;color:var(--ink,#213748);text-align:left}.ds-play span{color:var(--brand,#197568);font-size:12px}.ds-edit{background:none;border:0;border-left:1px solid var(--line,#e4e9ef);padding:0 14px;margin:13px 4px;font:400 12px Outfit,Arial,sans-serif;color:var(--muted,#657583)}.ds-play:focus-visible{outline:3px solid #56a496;outline-offset:3px}.ds-edit:focus-visible{outline:3px solid #56a496;outline-offset:3px}"
+    },
+    {
+      "name": "Language sequence",
+      "kind": "chip",
+      "refersTo": "sequence-part",
+      "description": "Literal language order, not an extra play step.",
+      "html": "<div class=\"ds-sequence\"><span>EN</span><i>→</i><span>ML</span><i>→</i><span>EN</span><i>→</i><span>ML</span></div>",
+      "css": ".ds-sequence{display:flex;align-items:center;gap:8px;font:500 11px Outfit,Arial,sans-serif}.ds-sequence span{background:var(--brand-soft,#e9f5ef);color:var(--brand,#197568);padding:8px;border-radius:5px}.ds-sequence i{font-style:normal;color:var(--muted,#657583)}"
+    },
+    {
+      "name": "Main navigation",
+      "kind": "nav",
+      "description": "Three working destinations; secondary tools in a menu.",
+      "html": "<nav class=\"ds-nav\"><button aria-current=\"page\">Announcements</button><button>Trips</button><button>Audio</button></nav>",
+      "css": ".ds-nav{display:flex;gap:5px}.ds-nav button{border:0;background:none;color:var(--muted,#657583);border-radius:7px;padding:10px 15px;font:400 13px Outfit,Arial,sans-serif}.ds-nav button[aria-current]{background:var(--brand-soft,#e9f5ef);color:var(--brand,#197568)}.ds-nav button:hover{background:var(--surface-muted,#f6f8fa)}.ds-nav button:focus-visible{outline:3px solid #56a496;outline-offset:3px}"
+    },
+    {
+      "name": "Stop sequence",
+      "kind": "button",
+      "description": "Stops all remaining parts, including a pause.",
+      "html": "<button class=\"ds-stop\">Stop</button>",
+      "css": ".ds-stop{background:var(--danger-soft,#fff0f0);color:var(--danger,#af4145);border:0;border-radius:7px;padding:12px 18px;font:500 13px Outfit,Arial,sans-serif}.ds-stop:hover{filter:brightness(.96)}.ds-stop:focus-visible{outline:3px solid #56a496;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Prepare once. Tap to announce.",
+    "overview": "A compact bilingual driver tool with direct play and optional editing. Existing cool blue and sea-green surfaces remain, with locally bundled Outfit and Malayalam scripts.",
+    "keyCharacteristics": [
+      "One tap for the full sequence",
+      "Editing is optional",
+      "Stop remains visible",
+      "Gestures have button alternatives"
+    ],
+    "rules": [
+      {
+        "name": "One Tap",
+        "body": "Manual play runs every configured language/repeat without another confirmation.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Keep explicit edit and stop controls.",
+      "Preserve both-theme semantic status pairs."
+    ],
+    "donts": [
+      "Do not add marketing choreography to driver operations.",
+      "Do not promise browser haptics where unavailable."
+    ]
+  }
+}
