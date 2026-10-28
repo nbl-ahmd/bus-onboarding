@@ -1,5 +1,6 @@
 import { openDB, type DBSchema } from "idb";
 import type { Language, Workspace } from "@/domain/models";
+import { templates } from "@/domain/templates";
 import { createWorkspace } from "@/domain/seed";
 import { normalizePlaybackPreferences } from "@/domain/playback";
 export interface AudioRecord {
@@ -34,6 +35,12 @@ export class IndexedDBWorkspaceRepository implements WorkspaceRepository {
       (await (await db()).get("workspaces", owner)) || createWorkspace();
     return {
       ...state,
+      templates: [
+        ...templates.filter(
+          (t) => !state.templates.some((old) => old.id === t.id),
+        ),
+        ...state.templates,
+      ],
       preferences: normalizePlaybackPreferences({
         ...createWorkspace().preferences,
         ...state.preferences,

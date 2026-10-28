@@ -70,12 +70,6 @@ export function useWorkspace() {
         if (alive) setConfig(data);
       })
       .catch(() => {});
-    if ("serviceWorker" in navigator && process.env.NODE_ENV === "production")
-      navigator.serviceWorker.register("/sw.js").catch(() => {
-        setNotice(
-          "Offline app setup failed. Refresh while connected before the trip.",
-        );
-      });
     return () => {
       alive = false;
       window.removeEventListener("online", network);

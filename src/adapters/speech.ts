@@ -1,5 +1,6 @@
 import type { Language, Preferences } from "@/domain/models";
 import { audioKey, audioRepository } from "./storage";
+import { queueSpeech } from "./speech-queue";
 import { authHeaders } from "./supabase";
 export interface SpeechProvider {
   synthesize(
@@ -9,20 +10,34 @@ export interface SpeechProvider {
   ): Promise<Blob>;
 }
 export class GeminiSpeechProvider implements SpeechProvider {
+  constructor(
+    private voice?: string,
+    private model?: string,
+  ) {}
   async synthesize(text: string, language: Language, signal?: AbortSignal) {
-    const response = await fetch("/api/speech", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-      body: JSON.stringify({ text, language }),
-      signal,
-    });
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(
-        data.error || "Voice generation failed. Try again later.",
-      );
-    }
-    return response.blob();
+    return queueSpeech(async () => {
+      const response = await fetch("/api/speech", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({
+          text,
+          language,
+          voice: this.voice,
+          model: this.model,
+        }),
+        signal,
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(
+          data.error || "Voice generation failed. Try again later.",
+        );
+      }
+      return response.blob();
+    }, signal);
   }
 }
 export async function findAudio(
@@ -66,6 +81,17 @@ export class BrowserPlaybackAdapter implements PlaybackAdapter {
     onLanguage: (lang: Language, index: number, total: number) => void,
   ) {
     this.cancelled = false;
+    if (preferences.chime) {
+      const response = await fetch("/audio/chime.wav");
+      if (!response.ok)
+        throw new Error(
+          "Chime could not load. Retry or turn it off in Settings.",
+        );
+      const blob = await response.blob();
+      if (this.cancelled) throw new Error("STOPPED");
+      await this.playBlob(blob, 1);
+      await this.pause(250);
+    }
     for (let index = 0; index < items.length; index++) {
       const item = items[index];
       if (this.cancelled) throw new Error("STOPPED");

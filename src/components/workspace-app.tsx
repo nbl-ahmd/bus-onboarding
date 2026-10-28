@@ -92,6 +92,15 @@ import {
   EmptyState,
   errorMessage,
 } from "./ui";
+import { PwaStatus } from "./pwa-status";
+import { JourneyConsole } from "./journey-console";
+import {
+  buildJourney,
+  journeyAudioTasks,
+  type AudioTask,
+  type JourneyStep,
+} from "@/domain/journey";
+import { cloudVoice, speechVariant } from "@/domain/voices";
 import { TripEditor } from "./trip-editor";
 import { AccountDialog } from "./account-dialog";
 import { FleetPanel } from "./fleet-panel";
@@ -222,8 +231,13 @@ export function WorkspaceApp() {
   }>({ key: "", languages: [] });
   const [preparePack, setPreparePack] = useState(false);
   const [packAll, setPackAll] = useState(false);
+  const [packTrip, setPackTrip] = useState(true);
+  const guidedEditing = useRef<JourneyStep | null>(null);
+  const [summaryWeather, setSummaryWeather] =
+    useState<AnnouncementFacts["weather"]>();
   const [sequenceDialog, setSequenceDialog] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showMoreAnnouncements, setShowMoreAnnouncements] = useState(false);
   const [playingStep, setPlayingStep] = useState({ index: 0, total: 1 });
   const [playingTemplateId, setPlayingTemplateId] = useState<string | null>(
     null,
@@ -252,10 +266,45 @@ export function WorkspaceApp() {
   const selected =
     w?.templates.find((t) => t.id === selectedId) || w?.templates[0];
   const fleetId = w?.fleet.id || "";
-  const variant = `gemini:${config.model}:${config.voice}`;
+  const variant = JSON.stringify([
+    config.model,
+    config.voice,
+    w?.preferences.geminiVoiceEn,
+    w?.preferences.geminiVoiceMl,
+    w?.preferences.geminiModel,
+  ]);
+  const voiceVariant = useCallback(
+    (language: Language) =>
+      speechVariant(
+        { model: config.model, voice: config.voice },
+        {
+          geminiModel: w?.preferences.geminiModel,
+          geminiVoiceEn: w?.preferences.geminiVoiceEn,
+          geminiVoiceMl: w?.preferences.geminiVoiceMl,
+        } as Preferences,
+        language,
+      ),
+    [
+      config.model,
+      config.voice,
+      w?.preferences.geminiVoiceEn,
+      w?.preferences.geminiVoiceMl,
+      w?.preferences.geminiModel,
+    ],
+  );
   const effectiveFacts =
     selected && trip
-      ? templateFacts(selected, trip, facts)
+      ? templateFacts(
+          selected,
+          trip,
+          selected.id === "summary"
+            ? {
+                ...facts,
+                weather: summaryWeather || facts.weather,
+                summaryMode: online ? w?.preferences.summaryMode : "reusable",
+              }
+            : facts,
+        )
       : { ...facts, stopName: facts.stopName };
   const scriptKey = JSON.stringify([
     selected?.id,
@@ -299,6 +348,12 @@ export function WorkspaceApp() {
   );
   const requestedLanguages = languagesFor(languageMode);
   const allReady = requestedLanguages.every((l) => ready.includes(l));
+  const canGenerateLive = Boolean(
+    online &&
+    config.gemini &&
+    prefs?.speechProvider === "gemini" &&
+    prefs.liveAudio,
+  );
   const isAdmin = !identity || identity.role === "admin";
   useEffect(() => {
     player.current = new BrowserPlaybackAdapter();
@@ -342,7 +397,7 @@ export function WorkspaceApp() {
           language === "en" ? en : ml,
           language,
           fleetId,
-          variant,
+          voiceVariant(language),
         ),
       })),
     )
@@ -357,7 +412,7 @@ export function WorkspaceApp() {
     return () => {
       alive = false;
     };
-  }, [en, ml, fleetId, variant, audioVersion, audioIdentity]);
+  }, [en, ml, fleetId, variant, audioVersion, audioIdentity, voiceVariant]);
   useEffect(() => {
     if (!w || !trip) return;
     let alive = true;
@@ -366,7 +421,13 @@ export function WorkspaceApp() {
         const resolvedFacts = templateFacts(
           template,
           trip,
-          factOverrides[template.id] || initialFacts,
+          template.id === "summary"
+            ? {
+                ...(factOverrides[template.id] || initialFacts),
+                weather: summaryWeather,
+                summaryMode: online ? w.preferences.summaryMode : "reusable",
+              }
+            : factOverrides[template.id] || initialFacts,
         );
         const key = JSON.stringify([
           template.id,
@@ -401,7 +462,7 @@ export function WorkspaceApp() {
               spoken[language],
               language,
               w.fleet.id,
-              variant,
+              voiceVariant(language),
             ),
           })),
         );
@@ -423,12 +484,59 @@ export function WorkspaceApp() {
     return () => {
       alive = false;
     };
-  }, [w, trip, factOverrides, variant, voices, audioVersion, overrides]);
+  }, [
+    w,
+    trip,
+    factOverrides,
+    variant,
+    voices,
+    audioVersion,
+    overrides,
+    summaryWeather,
+    voiceVariant,
+    online,
+  ]);
   useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => setNotice(""), 9000);
     return () => clearTimeout(timer);
   }, [notice, setNotice]);
+  const forecastDestination = trip?.destination;
+  const forecastArrival = trip?.arrival;
+  useEffect(() => {
+    if (
+      !forecastDestination ||
+      !forecastArrival ||
+      !online ||
+      !config.weather ||
+      prefs?.summaryMode !== "live"
+    )
+      return;
+    let alive = true;
+    const refresh = async () => {
+      try {
+        const forecast = await new MetNorwayWeatherProvider().forecast({
+          destination: forecastDestination,
+          arrival: forecastArrival,
+        } as Trip);
+        if (alive) setSummaryWeather(forecast);
+      } catch {
+        /* A reusable summary remains available without a forecast. */
+      }
+    };
+    void refresh();
+    const timer = setInterval(refresh, 30 * 60_000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [
+    forecastDestination,
+    forecastArrival,
+    online,
+    config.weather,
+    prefs?.summaryMode,
+  ]);
   useEffect(() => {
     if (w)
       document.documentElement.dataset.theme = w.preferences.nightMode
@@ -528,6 +636,7 @@ export function WorkspaceApp() {
   function selectAnnouncement(template: AnnouncementTemplate) {
     if (playing || generation) return;
     haptics.pulse("tap", prefs?.haptics ?? true);
+    guidedEditing.current = null;
     setSelectedId(template.id);
     setShowPreview(true);
     setEditingScript(false);
@@ -550,9 +659,22 @@ export function WorkspaceApp() {
   function newTrip(reverse = false) {
     if (!w) return;
     const base = trip || createWorkspace().trips[0];
+    const oldDeparture = new Date(base.departure);
+    const today = new Date();
+    const offset = 330 * 60_000;
+    const originalTime =
+      (((oldDeparture.getTime() + offset) % 86400000) + 86400000) % 86400000;
+    let nextDeparture =
+      Math.floor((today.getTime() + offset) / 86400000) * 86400000 +
+      originalTime -
+      offset;
+    if (nextDeparture < today.getTime()) nextDeparture += 86400000;
+    const duration = Date.parse(base.arrival) - Date.parse(base.departure);
     setEditor({
       ...base,
       id: uid(),
+      departure: new Date(nextDeparture).toISOString(),
+      arrival: new Date(nextDeparture + duration).toISOString(),
       fleetId: w.fleet.id,
       driverId: identity?.id || w.drivers[0]?.id || base.driverId,
       vehicleId: w.vehicles[0]?.id || "",
@@ -560,6 +682,8 @@ export function WorkspaceApp() {
       destination: reverse ? base.origin : base.destination,
       stops: reverse ? [...base.stops].reverse() : structuredClone(base.stops),
       status: "scheduled",
+      journeyDone: [],
+      journeySkipped: [],
       sample: base.sample ?? false,
     });
   }
@@ -589,9 +713,10 @@ export function WorkspaceApp() {
       return;
     }
     saveTrip(next);
+    setPage("announcements");
     notify(
       next.status === "active"
-        ? "Trip started. Choose an announcement when you are ready."
+        ? "Trip started. Your next announcement is ready in the journey guide."
         : "Trip completed. Your activity is saved on this phone.",
     );
   }
@@ -620,19 +745,60 @@ export function WorkspaceApp() {
     setPlayingTemplateId(template.id);
     setPlayingStep({ index: 0, total: sequence.length });
     setPlaying(true);
-    setPlayingTitle(template.title);
+    setPlayingTitle(triggerEvent.title || template.title);
     let source: AnnouncementEvent["source"] = "saved-audio";
     let status: AnnouncementEvent["status"] = "played";
     let detail = "";
     try {
-      const items = await Promise.all(
-        languagesFor(w.preferences.languageMode).map(async (language) => {
+      const items: { text: string; language: Language; blob?: Blob }[] = [];
+      for (const language of languagesFor(w.preferences.languageMode)) {
+        const item = await (async () => {
           const text = playbackScripts[language];
           if (!text.trim())
             throw new Error(
               "The announcement is empty. Add a script before playing.",
             );
-          const cached = await findAudio(text, language, w.fleet.id, variant);
+          let cached = await findAudio(
+            text,
+            language,
+            w.fleet.id,
+            voiceVariant(language),
+          );
+          if (
+            !cached &&
+            w.preferences.speechProvider === "gemini" &&
+            w.preferences.liveAudio &&
+            online &&
+            config.gemini
+          ) {
+            setPlayingTitle(
+              `Preparing ${triggerEvent.title || template.title}…`,
+            );
+            const controller = new AbortController();
+            abort.current = controller;
+            const blob = await new GeminiSpeechProvider(
+              cloudVoice(config, w.preferences, language),
+              w.preferences.geminiModel || config.model,
+            ).synthesize(text, language, controller.signal);
+            if (playbackCancelled.current) throw new Error("STOPPED");
+            cached = {
+              key: await audioKey(
+                text,
+                language,
+                voiceVariant(language),
+                w.fleet.id,
+              ),
+              blob,
+              language,
+              text,
+              fleetId: w.fleet.id,
+              title: triggerEvent.title || template.title,
+              createdAt: new Date().toISOString(),
+              origin: "gemini" as const,
+            };
+            await audioRepository.put(cached);
+            setAudioVersion((v) => v + 1);
+          }
           if (!cached) {
             if (w.preferences.speechProvider === "gemini")
               throw new Error(
@@ -648,14 +814,16 @@ export function WorkspaceApp() {
             source = "device";
           }
           return { text, language, blob: cached?.blob };
-        }),
-      );
+        })();
+        items.push(item);
+      }
       if (playbackCancelled.current) throw new Error("STOPPED");
       const scheduledItems = buildPlaybackSequence(
         w.preferences.languageMode,
         w.preferences.repetitions,
         w.preferences.repeatPattern,
       ).map((language) => items.find((item) => item.language === language)!);
+      setPlayingTitle(triggerEvent.title || template.title);
       await player.current!.play(
         scheduledItems,
         w.preferences,
@@ -667,12 +835,20 @@ export function WorkspaceApp() {
       haptics.pulse("complete", w.preferences.haptics);
       notify("Announcement completed.");
     } catch (err) {
-      detail = errorMessage(err);
+      detail = playbackCancelled.current ? "STOPPED" : errorMessage(err);
       status = detail === "STOPPED" ? "stopped" : "failed";
-      if (status === "failed") notify(detail);
+      if (status === "failed") {
+        notify(detail);
+        if (triggerEvent.journeyStepId) setShowPreview(true);
+      }
+      if (status === "stopped") abort.current?.abort();
     } finally {
+      abort.current?.abort();
+      abort.current = null;
       operation.current = null;
       setPlaying(false);
+      if (status === "played" && triggerEvent.journeyStepId)
+        finishJourneyStep(triggerEvent.journeyStepId);
       setPlayingTemplateId(null);
       const event: AnnouncementEvent = {
         id: uid(),
@@ -680,7 +856,7 @@ export function WorkspaceApp() {
         fleetId: w.fleet.id,
         driverId: identity?.id || trip.driverId,
         templateId: template.id,
-        title: template.title,
+        title: triggerEvent.title || template.title,
         languageMode: w.preferences.languageMode,
         sequence: buildPlaybackSequence(
           w.preferences.languageMode,
@@ -707,23 +883,41 @@ export function WorkspaceApp() {
   });
   function stopPlayback() {
     playbackCancelled.current = true;
+    abort.current?.abort();
     haptics.pulse("stop", prefs?.haptics ?? true);
     player.current?.stop();
   }
   function requestPlay() {
     if (!selected || operation.current || quickPending.current) return;
     haptics.pulse("play", prefs?.haptics ?? true);
-    trigger.current.dispatch(selected.id, effectiveFacts, scripts);
+    trigger.current.dispatch(
+      selected.id,
+      effectiveFacts,
+      scripts,
+      guidedEditing.current
+        ? {
+            journeyStepId: guidedEditing.current.id,
+            title: guidedEditing.current.title,
+          }
+        : undefined,
+    );
     setShowPreview(false);
   }
   async function quickPlay(template: AnnouncementTemplate) {
     if (!w || !trip || operation.current || quickPending.current) return;
     quickPending.current = true;
+    guidedEditing.current = null;
     haptics.pulse("play", w.preferences.haptics);
     const resolvedFacts = templateFacts(
       template,
       trip,
-      factOverrides[template.id] || initialFacts,
+      template.id === "summary"
+        ? {
+            ...(factOverrides[template.id] || initialFacts),
+            weather: summaryWeather,
+            summaryMode: online ? w.preferences.summaryMode : "reusable",
+          }
+        : factOverrides[template.id] || initialFacts,
     );
     const key = JSON.stringify([
       template.id,
@@ -759,7 +953,7 @@ export function WorkspaceApp() {
             spoken[language],
             language,
             w.fleet.id,
-            variant,
+            voiceVariant(language),
           ),
         })),
       );
@@ -771,7 +965,15 @@ export function WorkspaceApp() {
         w.preferences.speechProvider,
       );
       setSelectedId(template.id);
-      if (!state.canPlay) {
+      if (
+        !state.canPlay &&
+        !(
+          w.preferences.speechProvider === "gemini" &&
+          w.preferences.liveAudio &&
+          config.gemini &&
+          online
+        )
+      ) {
         setShowPreview(true);
         setEditingScript(false);
         notify(
@@ -786,6 +988,64 @@ export function WorkspaceApp() {
       quickPending.current = false;
     }
   }
+  function finishJourneyStep(id: string, skipped = false) {
+    if (!trip) return;
+    const next = {
+      ...trip,
+      journeyDone: [...new Set([...(trip.journeyDone || []), id])],
+      journeySkipped: skipped
+        ? [...new Set([...(trip.journeySkipped || []), id])]
+        : (trip.journeySkipped || []).filter((item) => item !== id),
+      updatedAt: new Date().toISOString(),
+    };
+    void update(
+      (state) => ({
+        ...state,
+        trips: state.trips.map((item) => (item.id === next.id ? next : item)),
+      }),
+      { kind: "trip", id: next.id, payload: next },
+    );
+    if (skipped) haptics.pulse("tap", prefs?.haptics ?? true);
+  }
+  function editGuided(step: JourneyStep) {
+    if (!trip || !w) return;
+    guidedEditing.current = step;
+    setSelectedId(step.templateId);
+    setFactOverrides((previous) => ({
+      ...previous,
+      [step.templateId]: {
+        ...initialFacts,
+        ...step.facts,
+        summaryMode: online ? w.preferences.summaryMode : "reusable",
+        weather: summaryWeather,
+      },
+    }));
+    setShowPreview(true);
+    setEditingScript(false);
+  }
+  async function playGuided(step: JourneyStep) {
+    if (!trip || !w || operation.current) return;
+    guidedEditing.current = step;
+    setSelectedId(step.templateId);
+    const resolved: AnnouncementFacts = {
+      ...initialFacts,
+      ...step.facts,
+      summaryMode: online ? w.preferences.summaryMode : "reusable",
+      weather: summaryWeather,
+    };
+    setFactOverrides((previous) => ({
+      ...previous,
+      [step.templateId]: resolved,
+    }));
+    haptics.pulse("play", w.preferences.haptics);
+    await playAnnouncement({
+      templateId: step.templateId,
+      facts: resolved,
+      source: "manual",
+      journeyStepId: step.id,
+      title: step.title,
+    });
+  }
   function navigate(next: Page) {
     if (playing && next === "library") {
       notify("Stop the announcement before opening the audio library.");
@@ -795,7 +1055,10 @@ export function WorkspaceApp() {
     setShowPreview(false);
     setMenu(false);
   }
-  async function generate(list: AnnouncementTemplate[]) {
+  async function generate(
+    list: AnnouncementTemplate[],
+    preparedTasks?: AudioTask[],
+  ) {
     if (!w || !trip || generation || playing || operation.current) return;
     if (!config.gemini) {
       notify(
@@ -809,27 +1072,46 @@ export function WorkspaceApp() {
     let count = 0;
     let downloaded = 0;
     try {
-      for (const template of list)
+      const tasks =
+        preparedTasks ||
+        list.map((template) => ({
+          template,
+          facts: templateFacts(template, trip, {
+            ...(factOverrides[template.id] || initialFacts),
+            summaryMode: "reusable" as const,
+          }),
+          title: template.title,
+        }));
+      for (const task of tasks) {
+        const template = task.template;
         for (const language of languagesFor(w.preferences.languageMode)) {
           if (controller.signal.aborted)
             throw new Error(
               "Preparation cancelled. Completed files remain saved.",
             );
           const text =
-            list.length === 1 && template.id === selected?.id
+            !preparedTasks && list.length === 1 && template.id === selected?.id
               ? scripts[language]
               : renderAnnouncement(
                   template,
                   trip,
                   w.fleet.name,
-                  effectiveFacts,
+                  task.facts,
                   language,
                 );
-          if (await findAudio(text, language, w.fleet.id, variant)) continue;
+          if (
+            await findAudio(text, language, w.fleet.id, voiceVariant(language))
+          )
+            continue;
           setGeneration(
-            `${template.title} · ${language === "ml" ? "Malayalam" : "English"}`,
+            `${task.title} · ${language === "ml" ? "Malayalam" : "English"}`,
           );
-          const key = await audioKey(text, language, variant, w.fleet.id);
+          const key = await audioKey(
+            text,
+            language,
+            voiceVariant(language),
+            w.fleet.id,
+          );
           const remote =
             identity && online
               ? await getSupabase()!
@@ -838,11 +1120,10 @@ export function WorkspaceApp() {
               : null;
           const blob =
             remote?.data ||
-            (await new GeminiSpeechProvider().synthesize(
-              text,
-              language,
-              controller.signal,
-            ));
+            (await new GeminiSpeechProvider(
+              cloudVoice(config, w.preferences, language),
+              w.preferences.geminiModel || config.model,
+            ).synthesize(text, language, controller.signal));
           if (remote?.data) downloaded++;
           await audioRepository.put({
             key,
@@ -850,7 +1131,7 @@ export function WorkspaceApp() {
             language,
             text,
             fleetId: w.fleet.id,
-            title: template.title,
+            title: task.title,
             createdAt: new Date().toISOString(),
             origin: "gemini",
           });
@@ -869,6 +1150,7 @@ export function WorkspaceApp() {
               );
           }
         }
+      }
       notify(
         count
           ? `${count} ${count === 1 ? "voice file" : "voice files"} saved for offline playback.${downloaded ? ` ${downloaded} reused from your fleet’s audio.` : ""}`
@@ -893,7 +1175,11 @@ export function WorkspaceApp() {
     setWeatherBusy(true);
     try {
       const result = await new MetNorwayWeatherProvider().forecast(trip);
-      setFacts((f) => ({ ...f, weather: result }));
+      setSummaryWeather(result);
+      setFactOverrides((previous) => ({
+        ...previous,
+        summary: { ...(previous.summary || initialFacts), weather: result },
+      }));
       notify("Forecast updated for the scheduled arrival time.");
     } catch (err) {
       notify(errorMessage(err));
@@ -1046,13 +1332,26 @@ export function WorkspaceApp() {
             </button>
           </div>
         </header>
+        <PwaStatus
+          online={online}
+          blocked={playing || Boolean(generation)}
+          notify={notify}
+        />
         <main>
-          <div className="page-heading">
+          {page === "announcements" && trip?.status === "active" ? (
+            <h1 className="visually-hidden">Journey announcements</h1>
+          ) : null}
+          <div
+            className="page-heading"
+            hidden={page === "announcements" && trip?.status === "active"}
+          >
             <div>
               <h1>{section.title}</h1>
               <p>
                 {page === "announcements"
-                  ? "Tap to play. Edit only when you need to."
+                  ? trip?.status === "active"
+                    ? "Your next announcement, ready when you are."
+                    : "Set up once. Follow your journey, one tap at a time."
                   : section.description}
               </p>
             </div>
@@ -1112,17 +1411,15 @@ export function WorkspaceApp() {
                     </button>
                     <button
                       className={`trip-status ${trip.status}`}
-                      disabled={
-                        playing ||
-                        Boolean(generation) ||
-                        trip.status === "completed"
+                      disabled={playing || Boolean(generation) || false}
+                      onClick={() =>
+                        trip.status === "completed" ? newTrip() : statusTrip()
                       }
-                      onClick={statusTrip}
                     >
                       {trip.status === "active" ? (
                         "End trip"
                       ) : trip.status === "completed" ? (
-                        "Completed"
+                        "Run again"
                       ) : (
                         <>
                           <Play size={13} />
@@ -1150,7 +1447,49 @@ export function WorkspaceApp() {
                   </EmptyState>
                 </section>
               )}
-              <div className="workbench">
+              {trip ? (
+                <JourneyConsole
+                  trip={trip}
+                  disabled={playing || Boolean(generation)}
+                  busy={playing}
+                  sequenceLabel={playbackSequenceLabel(sequence, true)}
+                  onInterrupt={(id) => {
+                    const template = w.templates.find((item) => item.id === id);
+                    if (template) void quickPlay(template);
+                  }}
+                  onPlay={playGuided}
+                  onSkip={(step) => finishJourneyStep(step.id, true)}
+                  onChoose={playGuided}
+                  onEdit={editGuided}
+                  onPrepare={() => {
+                    setPackTrip(true);
+                    setPreparePack(true);
+                  }}
+                />
+              ) : null}
+              {trip?.status === "active" ? (
+                <button
+                  className="more-announcements-toggle text-button"
+                  aria-expanded={showMoreAnnouncements}
+                  onClick={() =>
+                    setShowMoreAnnouncements(!showMoreAnnouncements)
+                  }
+                >
+                  <Radio size={17} />
+                  {showMoreAnnouncements
+                    ? "Hide other announcements"
+                    : "Other announcements"}
+                  <ChevronDown size={16} />
+                </button>
+              ) : null}
+              <div
+                className="workbench"
+                hidden={
+                  trip?.status === "active" &&
+                  !showMoreAnnouncements &&
+                  !showPreview
+                }
+              >
                 <section
                   className="announcement-workspace"
                   aria-label="Quick announcements"
@@ -1630,7 +1969,9 @@ export function WorkspaceApp() {
                             {allReady
                               ? "Saved on this phone"
                               : prefs!.speechProvider === "gemini"
-                                ? "Prepare audio before playing"
+                                ? canGenerateLive
+                                  ? "Will prepare missing audio online"
+                                  : "Prepare audio before playing"
                                 : readiness.canPlay
                                   ? "Device voices ready"
                                   : `${missingNames} ${readiness.missing.length > 1 ? "voices" : "voice"} missing`}
@@ -1643,7 +1984,7 @@ export function WorkspaceApp() {
                                 : "Audio needed"}
                           </span>
                         </div>
-                        {!readiness.canPlay && !playing ? (
+                        {!readiness.canPlay && !canGenerateLive && !playing ? (
                           <p className="playback-recovery">
                             {prefs!.speechProvider === "gemini"
                               ? `Prepare or record the missing ${missingNames} audio below.`
@@ -1654,7 +1995,9 @@ export function WorkspaceApp() {
                           className={`play-button ${playing ? "is-playing" : ""}`}
                           disabled={
                             Boolean(generation) ||
-                            (!playing && !readiness.canPlay) ||
+                            (!playing &&
+                              !readiness.canPlay &&
+                              !canGenerateLive) ||
                             (!playing &&
                               !scripts.en.trim() &&
                               !scripts.ml.trim())
@@ -2201,9 +2544,16 @@ export function WorkspaceApp() {
               Which announcements?
               <select
                 disabled={Boolean(generation)}
-                value={packAll ? "all" : "favorites"}
-                onChange={(e) => setPackAll(e.target.value === "all")}
+                value={packTrip ? "trip" : packAll ? "all" : "favorites"}
+                onChange={(e) => {
+                  setPackTrip(e.target.value === "trip");
+                  setPackAll(e.target.value === "all");
+                }}
               >
+                <option value="trip">
+                  Whole trip · every stop (
+                  {trip ? buildJourney(trip).length : 0} steps)
+                </option>
                 <option value="favorites">
                   Your favourites (
                   {
@@ -2221,17 +2571,21 @@ export function WorkspaceApp() {
               <Download size={18} />
               <span>
                 Up to{" "}
-                {(packAll
-                  ? w.templates.length
-                  : w.templates.filter((t) => prefs!.favoriteIds.includes(t.id))
-                      .length) * requestedLanguages.length}{" "}
+                {(packTrip && trip
+                  ? buildJourney(trip).length
+                  : packAll
+                    ? w.templates.length
+                    : w.templates.filter((t) =>
+                        prefs!.favoriteIds.includes(t.id),
+                      ).length) * requestedLanguages.length}{" "}
                 voice requests. Existing matching files are reused.
               </span>
             </div>
             <p className="field-help">
-              Stop and delay announcements use the current preview details.
-              Changing those details requires new audio. Free-tier quotas apply;
-              preparation stops if the service is unavailable.
+              Every stop gets its own approach and arrival voice. Reusable
+              summaries omit live weather. Matching text and voices are reused;
+              only changed messages need generation. Free-tier quotas apply. If
+              preparation stops, tap again later to resume from saved files.
             </p>
             {!config.gemini ? (
               <p className="inline-error">
@@ -2257,7 +2611,7 @@ export function WorkspaceApp() {
                 !config.gemini ||
                 !online ||
                 Boolean(generation) ||
-                (!packAll && !prefs!.favoriteIds.length)
+                (!packTrip && !packAll && !prefs!.favoriteIds.length)
               }
               onClick={() =>
                 generate(
@@ -2266,6 +2620,9 @@ export function WorkspaceApp() {
                     : w.templates.filter((t) =>
                         prefs!.favoriteIds.includes(t.id),
                       ),
+                  packTrip && trip
+                    ? journeyAudioTasks(trip, w.templates)
+                    : undefined,
                 )
               }
             >

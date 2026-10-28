@@ -181,7 +181,7 @@ test("explicit optional announcements remain one tap in quiet mode", async ({
 }) => {
   await prepareDeviceVoices(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "All 12", exact: true }).click();
+  await page.getByRole("button", { name: /^All \d+$/ }).click();
   await page
     .getByRole("button", { name: "Play Time to rest", exact: true })
     .click();
@@ -204,7 +204,7 @@ test("stop edits stay with their own announcement instead of changing the arriva
   await page
     .getByRole("button", { name: "Close preview", exact: true })
     .click();
-  await page.getByRole("button", { name: "All 12", exact: true }).click();
+  await page.getByRole("button", { name: /^All \d+$/ }).click();
   await page
     .getByRole("button", { name: "Edit We’ve arrived", exact: true })
     .click();

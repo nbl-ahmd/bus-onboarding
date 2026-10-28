@@ -1,4 +1,4 @@
-const CACHE = "nightline-shell-v1";
+const CACHE = "nightline-shell-__NIGHTLINE_BUILD__";
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -6,12 +6,44 @@ self.addEventListener("install", (event) => {
       .then((cache) =>
         cache.addAll([
           "/",
+          "/audio/chime.wav",
           "/manifest.webmanifest",
           "/icons/icon.svg",
           "/icons/icon-192.png",
           "/icons/icon-512.png",
         ]),
-      ),
+      )
+      .then(async () => {
+        const cache = await caches.open(CACHE);
+        const shell = await cache.match("/");
+        const html = await shell.text();
+        const assets = [
+          ...new Set(
+            [...html.matchAll(/(?:src|href)="([^"<>]+)"/g)]
+              .map((match) => match[1].replaceAll("&amp;", "&"))
+              .filter((url) => url.startsWith("/_next/static/")),
+          ),
+        ];
+        await Promise.all(
+          assets.map(async (url) => {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Offline app asset unavailable");
+            await cache.put(url, response.clone());
+            if (url.endsWith(".css")) {
+              const css = await response.text();
+              const fonts = [
+                ...css.matchAll(
+                  /url\(["']?([^)'"\s]+\.(?:woff2?|ttf))["']?\)/g,
+                ),
+              ].map(
+                (match) =>
+                  new URL(match[1], new URL(url, self.location.origin)).href,
+              );
+              await Promise.all(fonts.map((font) => cache.add(font)));
+            }
+          }),
+        );
+      }),
   );
 });
 self.addEventListener("activate", (event) => {
@@ -71,6 +103,7 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/audio/") ||
     url.pathname === "/manifest.webmanifest"
   ) {
     event.respondWith(

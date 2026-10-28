@@ -159,3 +159,13 @@ Browser vibration is optional and best-effort. Use small tap/play/stop/completio
 - Don't require a preview or quiet-mode confirmation after an explicit manual play tap.
 - Don't use haptic support as a prerequisite for operation.
 - Don't replace practical controls with marketing effects or gesture-only interactions.
+
+## Guided trip operation
+
+The driving surface now leads with a route console. It shows one announcement, a large full-width play action, the literal bilingual sequence, the following step, and Skip. Route progress is a thin horizontal track. Successful playback advances; failure or Stop preserves position. Common interruptions sit directly below the play action and never change that position. The larger favourites/library workspace is collapsed during an active trip and remains available through Other announcements.
+
+The guide uses the existing blue/green palette and locally bundled type. Current-step titles use 28px on desktop and 25px on phones; the primary action uses 19px and 17px respectively. A 14px bordered surface, 10px play control and 44px secondary targets separate the hierarchy without decorative imagery. Night appearance retains dark text on mint play controls. The route list is a bounded scroll region with numbered steps, current-step state and explicit replay actions.
+
+Stops are an ordered editor with a location field, type, optional IST time and duration. The handle supports desktop dragging; explicit up/down controls remain available on touch screens and keyboards. Stop IDs stay stable when reordered. Up to 200 stops are supported. The guide, template rendering, voice generation and storage remain separate modules so future geofence or traffic triggers can supply the same announcement events.
+
+Settings exposes English/Malayalam cloud voices, an allowlisted model choice, a local two-note chime, live generation and reusable/live summary modes. Preparation offers a whole-trip scope. Offline state and app updates use small, contextual notices; an update never reloads during active playback or audio preparation.

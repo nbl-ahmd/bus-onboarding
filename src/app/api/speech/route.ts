@@ -1,3 +1,4 @@
+import { DEFAULT_TTS_MODEL, GEMINI_VOICES, TTS_MODELS } from "@/domain/voices";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { authorize, sameOrigin } from "@/lib/server-auth";
@@ -5,6 +6,17 @@ export const maxDuration = 60;
 const input = z.object({
   text: z.string().min(1).max(1800),
   language: z.enum(["en", "ml"]),
+  model: z
+    .string()
+    .refine((value) => TTS_MODELS.some((model) => model.id === value))
+    .optional(),
+  voice: z
+    .string()
+    .refine(
+      (v) => GEMINI_VOICES.some((voice) => voice.id === v),
+      "Choose a supported voice",
+    )
+    .optional(),
 });
 export async function POST(request: NextRequest) {
   if (!sameOrigin(request))
@@ -54,15 +66,20 @@ export async function POST(request: NextRequest) {
       );
   }
   const { text, language } = parsed.data;
-  const model = process.env.GEMINI_TTS_MODEL || "gemini-2.5-flash-preview-tts";
+  const voice = parsed.data.voice || process.env.GEMINI_TTS_VOICE || "Kore";
+  const model =
+    parsed.data.model || process.env.GEMINI_TTS_MODEL || DEFAULT_TTS_MODEL;
   if (!/^[a-zA-Z0-9._-]+$/.test(model))
     return Response.json(
       { error: "Invalid server speech-model configuration." },
       { status: 503 },
     );
   try {
+    const modern = model.startsWith("gemini-3.8-");
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      modern
+        ? "https://generativelanguage.googleapis.com/v1beta/interactions"
+        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
         method: "POST",
         headers: {
@@ -70,27 +87,52 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
         },
         signal: AbortSignal.timeout(50_000),
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Read the following ${language === "ml" ? "Malayalam" : "Indian English"} passenger announcement exactly as written, calmly and clearly. Do not add introductions or other words.\n\n${text}`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: process.env.GEMINI_TTS_VOICE || "Kore",
+        body: JSON.stringify(
+          modern
+            ? {
+                model,
+                input: [
+                  {
+                    type: "user_input",
+                    content: [
+                      {
+                        type: "text",
+                        text,
+                        annotations: [
+                          {
+                            type: "speech_metadata",
+                            style: `Calm, clear ${language === "ml" ? "Malayalam" : "Indian English"} bus passenger announcement. Read exactly as written.`,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+                response_format: { type: "audio", mime_type: "audio/wav" },
+                generation_config: { speech_config: [{ voice }] },
+              }
+            : {
+                contents: [
+                  {
+                    parts: [
+                      {
+                        text: `Read the following ${language === "ml" ? "Malayalam" : "Indian English"} passenger announcement exactly as written, calmly and clearly. Do not add introductions or other words.\n\n${text}`,
+                      },
+                    ],
+                  },
+                ],
+                generationConfig: {
+                  responseModalities: ["AUDIO"],
+                  speechConfig: {
+                    voiceConfig: {
+                      prebuiltVoiceConfig: {
+                        voiceName: voice,
+                      },
+                    },
+                  },
                 },
               },
-            },
-          },
-        }),
+        ),
       },
     );
     if (!response.ok)
@@ -104,9 +146,26 @@ export async function POST(request: NextRequest) {
         { status: response.status === 429 ? 429 : 502 },
       );
     const data = await response.json();
-    const part = data.candidates?.[0]?.content?.parts?.find(
-      (p: { inlineData?: { data?: string } }) => p.inlineData?.data,
-    )?.inlineData;
+    const part = modern
+      ? data.steps
+          ?.filter((step: { type: string }) => step.type === "model_output")
+          .flatMap(
+            (step: {
+              content?: { type: string; data?: string; mime_type?: string }[];
+            }) => step.content || [],
+          )
+          .filter(
+            (part: { type: string; data?: string }) =>
+              part.type === "audio" && part.data,
+          )
+          .map((part: { data: string; mime_type?: string }) => ({
+            data: part.data,
+            mimeType: part.mime_type || "audio/wav",
+          }))
+          .at(-1)
+      : data.candidates?.[0]?.content?.parts?.find(
+          (p: { inlineData?: { data?: string } }) => p.inlineData?.data,
+        )?.inlineData;
     if (!part?.data) throw new Error("No audio returned");
     const bytes = Buffer.from(part.data, "base64");
     const isWav = bytes.subarray(0, 4).toString() === "RIFF";

@@ -49,7 +49,7 @@ it("one playback operation speaks every part in the configured order", async () 
   const progress: number[] = [];
   const finished = player.play(
     items,
-    createWorkspace().preferences,
+    { ...createWorkspace().preferences, chime: false },
     (_, index, total) => progress.push(index + total),
   );
   await vi.runAllTimersAsync();
@@ -67,7 +67,7 @@ it("stop during the pause cancels all remaining languages", async () => {
         language,
         text: "Test",
       })),
-      createWorkspace().preferences,
+      { ...createWorkspace().preferences, chime: false },
       () => {},
     )
     .catch((error) => error.message);
@@ -76,4 +76,43 @@ it("stop during the pause cancels all remaining languages", async () => {
   await vi.runAllTimersAsync();
   await expect(result).resolves.toBe("STOPPED");
   expect(spoken).toEqual(["en-IN"]);
+});
+
+it("plays the bundled chime once before a complete bilingual sequence", async () => {
+  vi.useFakeTimers();
+  const spoken = fakeSpeech();
+  const media: string[] = [];
+  class Media {
+    src = "";
+    playbackRate = 1;
+    onended?: () => void;
+    onerror?: () => void;
+    play() {
+      media.push("chime");
+      setTimeout(() => this.onended?.(), 10);
+      return Promise.resolve();
+    }
+    pause() {}
+  }
+  vi.stubGlobal("Audio", Media);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["test chime"]),
+    })),
+  );
+  const player = new BrowserPlaybackAdapter();
+  const finished = player.play(
+    buildPlaybackSequence("en-ml", 2).map((language) => ({
+      language,
+      text: "Test",
+    })),
+    createWorkspace().preferences,
+    () => {},
+  );
+  await vi.runAllTimersAsync();
+  await finished;
+  expect(media).toEqual(["chime"]);
+  expect(spoken).toEqual(["en-IN", "ml-IN", "en-IN", "ml-IN"]);
 });

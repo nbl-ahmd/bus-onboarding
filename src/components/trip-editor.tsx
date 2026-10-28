@@ -1,6 +1,14 @@
 "use client";
-import { useState, type FormEvent } from "react";
-import { Plus, Trash2, ArrowLeftRight, Save } from "lucide-react";
+import { useRef, useState, type FormEvent } from "react";
+import {
+  Plus,
+  Trash2,
+  ArrowLeftRight,
+  Save,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+} from "lucide-react";
 import {
   tripSchema,
   uid,
@@ -8,6 +16,7 @@ import {
   type Trip,
   type Vehicle,
 } from "@/domain/models";
+import { reorderStop } from "@/domain/journey";
 import { Dialog } from "./ui";
 const localInput = (iso: string) => {
   const date = new Date(iso);
@@ -28,6 +37,7 @@ export function TripEditor({
   onClose: () => void;
 }) {
   const [draft, setDraft] = useState<Trip>(() => structuredClone(trip));
+  const dragging = useRef<number | null>(null);
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   function submit(event: FormEvent) {
@@ -51,8 +61,8 @@ export function TripEditor({
     <Dialog title="Set up your trip" onClose={onClose} wide>
       <form onSubmit={submit} className="form-stack">
         <p className="muted">
-          Confirm the details before boarding. Everything here is entered by
-          your crew.
+          Set up this route once. Stops become an ordered announcement guide,
+          saved on this phone and ready for your next run.
         </p>
         <div className="form-grid">
           <label>
@@ -185,7 +195,10 @@ export function TripEditor({
           </label>
         </div>
         <div className="section-heading">
-          <h3>Journey stops</h3>
+          <h3>
+            Stop sequence{" "}
+            <span className="muted small">{draft.stops.length} / 200</span>
+          </h3>
           <button
             type="button"
             className="text-button"
@@ -198,11 +211,15 @@ export function TripEditor({
                 ],
               })
             }
-            disabled={draft.stops.length >= 20}
+            disabled={draft.stops.length >= 200}
           >
             <Plus size={16} /> Add stop
           </button>
         </div>
+        <p className="field-help">
+          Add stops in travel order. Drag the handle or use the arrows to
+          rearrange. Each stop gets an approaching and a stopped announcement.
+        </p>
         {draft.stops.length === 0 ? (
           <p className="muted small">
             No stops added. Add your actual boarding, break and drop-off
@@ -210,77 +227,155 @@ export function TripEditor({
           </p>
         ) : (
           draft.stops.map((stop, index) => (
-            <div className="stop-editor" key={stop.id}>
-              <label>
-                Stop {index + 1}
-                <input
-                  aria-label={`Stop ${index + 1} name`}
-                  required
-                  maxLength={100}
-                  value={stop.name}
-                  onChange={(e) =>
+            <div
+              className="stop-sequence-row"
+              key={stop.id}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragging.current !== null)
+                  setDraft({
+                    ...draft,
+                    stops: reorderStop(draft.stops, dragging.current, index),
+                  });
+                dragging.current = null;
+              }}
+            >
+              <div className="stop-order-controls">
+                <button
+                  type="button"
+                  className="icon-button"
+                  draggable
+                  aria-label={`Drag stop ${index + 1} to reorder`}
+                  onDragStart={() => {
+                    dragging.current = index;
+                  }}
+                  onDragEnd={() => {
+                    dragging.current = null;
+                  }}
+                >
+                  <GripVertical size={18} />
+                </button>
+                <span>{index + 1}</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Move stop ${index + 1} up`}
+                  disabled={index === 0}
+                  onClick={() =>
                     setDraft({
                       ...draft,
-                      stops: draft.stops.map((s) =>
-                        s.id === stop.id ? { ...s, name: e.target.value } : s,
-                      ),
-                    })
-                  }
-                  placeholder="Location name"
-                />
-              </label>
-              <label>
-                Type
-                <select
-                  value={stop.type}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      stops: draft.stops.map((s) =>
-                        s.id === stop.id
-                          ? { ...s, type: e.target.value as typeof s.type }
-                          : s,
-                      ),
+                      stops: reorderStop(draft.stops, index, index - 1),
                     })
                   }
                 >
-                  <option value="break">Break</option>
-                  <option value="boarding">Boarding</option>
-                  <option value="drop-off">Drop-off</option>
-                </select>
-              </label>
-              <label>
-                Minutes
-                <input
-                  type="number"
-                  min={0}
-                  max={180}
-                  value={stop.minutes}
-                  onChange={(e) =>
+                  <ArrowUp size={17} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label={`Move stop ${index + 1} down`}
+                  disabled={index === draft.stops.length - 1}
+                  onClick={() =>
                     setDraft({
                       ...draft,
-                      stops: draft.stops.map((s) =>
-                        s.id === stop.id
-                          ? { ...s, minutes: Number(e.target.value) }
-                          : s,
-                      ),
+                      stops: reorderStop(draft.stops, index, index + 1),
                     })
                   }
-                />
-              </label>
-              <button
-                type="button"
-                className="icon-button danger-text"
-                aria-label={`Remove stop ${index + 1}`}
-                onClick={() =>
-                  setDraft({
-                    ...draft,
-                    stops: draft.stops.filter((s) => s.id !== stop.id),
-                  })
-                }
-              >
-                <Trash2 size={18} />
-              </button>
+                >
+                  <ArrowDown size={17} />
+                </button>
+              </div>
+              <div className="stop-editor">
+                <label>
+                  Stop {index + 1}
+                  <input
+                    aria-label={`Stop ${index + 1} name`}
+                    required
+                    maxLength={100}
+                    value={stop.name}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        stops: draft.stops.map((s) =>
+                          s.id === stop.id ? { ...s, name: e.target.value } : s,
+                        ),
+                      })
+                    }
+                    placeholder="Location name"
+                  />
+                </label>
+                <label>
+                  Type
+                  <select
+                    aria-label={`Stop ${index + 1} type`}
+                    value={stop.type}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        stops: draft.stops.map((s) =>
+                          s.id === stop.id
+                            ? { ...s, type: e.target.value as typeof s.type }
+                            : s,
+                        ),
+                      })
+                    }
+                  >
+                    <option value="break">Break</option>
+                    <option value="boarding">Boarding</option>
+                    <option value="drop-off">Drop-off</option>
+                  </select>
+                </label>
+                <label>
+                  Scheduled time · IST
+                  <input
+                    type="time"
+                    aria-label={`Stop ${index + 1} time`}
+                    value={stop.time || ""}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        stops: draft.stops.map((s) =>
+                          s.id === stop.id ? { ...s, time: e.target.value } : s,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Minutes
+                  <input
+                    type="number"
+                    min={0}
+                    max={180}
+                    aria-label={`Stop ${index + 1} duration`}
+                    value={stop.minutes}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        stops: draft.stops.map((s) =>
+                          s.id === stop.id
+                            ? { ...s, minutes: Number(e.target.value) }
+                            : s,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="icon-button danger-text"
+                  aria-label={`Remove stop ${index + 1}`}
+                  onClick={() =>
+                    setDraft({
+                      ...draft,
+                      stops: draft.stops.filter((s) => s.id !== stop.id),
+                    })
+                  }
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             </div>
           ))
         )}

@@ -8,3 +8,10 @@ test-results/
 *.tsbuildinfo
 .DS_Store
 .impeccable/review/
+
+.vercel/
+coverage/
+.impeccable/questions/
+
+# Generated per-build service worker
+/public/sw.js

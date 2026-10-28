@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Preferences, ServiceConfig } from "@/domain/models";
 import { errorMessage } from "./ui";
+import { GEMINI_VOICES, TTS_MODELS } from "@/domain/voices";
 import { SequenceControls } from "./playback-sequence";
 export function SettingsPanel({
   preferences: p,
@@ -83,8 +84,112 @@ export function SettingsPanel({
             <option value="gemini">Gemini · prepare audio online</option>
           </select>
           <span className="field-help">
-            Matching saved recordings always play first. New Gemini audio is
-            generated only when you choose Prepare audio.
+            Matching saved recordings always play first. Download the trip
+            before departure, or enable live generation for changed
+            announcements.
+          </span>
+        </label>
+        {p.speechProvider === "gemini" ? (
+          <label>
+            Speech model
+            <select
+              value={p.geminiModel}
+              onChange={(e) => update({ ...p, geminiModel: e.target.value })}
+            >
+              <option value="">Fleet default · {config.model}</option>
+              {TTS_MODELS.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+            <span className="field-help">
+              A lighter model does not guarantee more free requests. Check your
+              project’s limits in Google AI Studio.
+            </span>
+          </label>
+        ) : null}
+        {p.speechProvider === "gemini" ? (
+          <div className="form-grid">
+            {(["en", "ml"] as const).map((lang) => (
+              <label key={lang}>
+                {lang === "en" ? "English" : "Malayalam"} announcement voice
+                <select
+                  value={
+                    (lang === "en" ? p.geminiVoiceEn : p.geminiVoiceMl) || ""
+                  }
+                  onChange={(e) =>
+                    update({
+                      ...p,
+                      [lang === "en" ? "geminiVoiceEn" : "geminiVoiceMl"]:
+                        e.target.value,
+                    })
+                  }
+                >
+                  <option value="">Fleet default · {config.voice}</option>
+                  {GEMINI_VOICES.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        ) : null}
+        <div className="setting-toggle">
+          <div>
+            <strong>Announcement chime</strong>
+            <span>
+              A soft two-note sound once before the whole language sequence.
+            </span>
+          </div>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Announcement chime"
+            checked={p.chime}
+            onChange={(e) => update({ ...p, chime: e.target.checked })}
+          />
+        </div>
+        <div className="setting-toggle">
+          <div>
+            <strong>Generate changed audio live</strong>
+            <span>
+              With Gemini selected and internet available, prepare missing
+              voices on tap. Saved voices never use quota.
+            </span>
+          </div>
+          <input
+            type="checkbox"
+            role="switch"
+            aria-label="Generate changed audio live"
+            checked={p.liveAudio}
+            onChange={(e) => update({ ...p, liveAudio: e.target.checked })}
+          />
+        </div>
+        <label>
+          Journey summary
+          <select
+            value={p.summaryMode}
+            onChange={(e) =>
+              update({
+                ...p,
+                summaryMode: e.target.value as Preferences["summaryMode"],
+              })
+            }
+          >
+            <option value="live">
+              Live when online · refresh destination forecast
+            </option>
+            <option value="reusable">
+              Reusable · scheduled arrival, no live weather
+            </option>
+          </select>
+          <span className="field-help">
+            Offline playback uses the reusable format. Arrival is relative to
+            departure (for example, tomorrow at 7 AM). Live summaries use the
+            current day. ETA stays crew-entered.
           </span>
         </label>
         <label>
@@ -245,6 +350,11 @@ export function SettingsPanel({
               {config.gemini ? "Configured" : "Not connected"}
             </span>
           </div>
+          <p className="field-help">
+            Speech model: {p.geminiModel || config.model || "loading…"}.
+            Free-tier availability and quotas are set by your Google AI Studio
+            project.
+          </p>
           <div className="integration-row">
             <span>Destination weather</span>
             <span className={`status-label ${config.weather ? "good" : ""}`}>

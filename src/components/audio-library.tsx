@@ -22,6 +22,7 @@ export function AudioLibrary({
 }) {
   const [records, setRecords] = useState<AudioRecord[]>([]);
   const [playing, setPlaying] = useState("");
+  const [exporting, setExporting] = useState(false);
   const [confirm, setConfirm] = useState("");
   const player = useRef<HTMLAudioElement | null>(null);
   const url = useRef("");
@@ -89,6 +90,50 @@ export function AudioLibrary({
     link.click();
     setTimeout(() => URL.revokeObjectURL(href), 1000);
   }
+  async function downloadAll() {
+    setExporting(true);
+    try {
+      const { zipSync, strToU8 } = await import("fflate");
+      const files: Record<string, Uint8Array> = {};
+      const manifest = [];
+      for (const record of records) {
+        const ext = record.blob.type.includes("wav")
+          ? "wav"
+          : record.blob.type.includes("mp4")
+            ? "m4a"
+            : record.blob.type.includes("mpeg")
+              ? "mp3"
+              : record.blob.type.includes("ogg")
+                ? "ogg"
+                : "webm";
+        const name = `${record.title.replace(/[^a-zA-Z0-9]+/g, "-").slice(0, 70)}-${record.language}-${record.key.slice(0, 10)}.${ext}`;
+        files[name] = new Uint8Array(await record.blob.arrayBuffer());
+        manifest.push({
+          file: name,
+          title: record.title,
+          language: record.language,
+          text: record.text,
+          createdAt: record.createdAt,
+        });
+      }
+      files["scripts.json"] = strToU8(JSON.stringify(manifest, null, 2));
+      const href = URL.createObjectURL(
+        new Blob([new Uint8Array(zipSync(files, { level: 0 }))], {
+          type: "application/zip",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = "nightline-voices.zip";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(href), 3000);
+      notify(`${records.length} saved voices exported with their scripts.`);
+    } catch (err) {
+      notify(errorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }
   return (
     <section className="surface">
       <div className="panel-heading">
@@ -96,9 +141,19 @@ export function AudioLibrary({
           <h2>Ready when the signal isn’t</h2>
           <p>Saved recordings and prepared voices on this phone.</p>
         </div>
-        <button className="button secondary" onClick={refresh}>
-          <RefreshCw size={16} /> Refresh
-        </button>
+        <div className="button-row">
+          <button
+            className="button secondary"
+            onClick={downloadAll}
+            disabled={!records.length || exporting}
+          >
+            <Download size={16} />
+            {exporting ? "Exporting…" : "Download all voices"}
+          </button>
+          <button className="button secondary" onClick={refresh}>
+            <RefreshCw size={16} /> Refresh
+          </button>
+        </div>
       </div>
       <div className="storage-summary">
         <HardDrive size={19} />

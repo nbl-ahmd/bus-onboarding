@@ -1,3 +1,4 @@
+import { DEFAULT_TTS_MODEL } from "./voices";
 import type { Workspace } from "./models";
 import { templates } from "./templates";
 export const SAMPLE_FLEET = "00000000-0000-4000-8000-000000000001";
@@ -70,6 +71,12 @@ export function createWorkspace(): Workspace {
       speechProvider: "device",
       voiceEn: "",
       voiceMl: "",
+      geminiModel: DEFAULT_TTS_MODEL,
+      geminiVoiceEn: "",
+      geminiVoiceMl: "",
+      chime: true,
+      liveAudio: true,
+      summaryMode: "live",
     },
   };
 }

@@ -11,6 +11,11 @@ export const stopSchema = z.object({
   name: z.string().min(1).max(100),
   minutes: z.number().min(0).max(180),
   type: z.enum(["boarding", "break", "drop-off"]),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .or(z.literal(""))
+    .optional(),
 });
 export const tripSchema = z
   .object({
@@ -31,7 +36,9 @@ export const tripSchema = z
       .refine((v) => Number.isFinite(Date.parse(v)), "Choose a valid arrival"),
     distanceKm: z.number().min(0).max(3000),
     crew: z.string().max(120),
-    stops: z.array(stopSchema).max(20),
+    stops: z.array(stopSchema).max(200),
+    journeyDone: z.array(z.string()).optional(),
+    journeySkipped: z.array(z.string()).optional(),
     status: z.enum(["scheduled", "active", "completed"]),
     updatedAt: z.string(),
     sample: z.boolean().optional(),
@@ -80,6 +87,8 @@ export interface AnnouncementFacts {
   stopName: string;
   revisedArrival: string;
   weather?: Weather;
+  summaryMode?: "live" | "reusable";
+  referenceTime?: string;
 }
 export interface AnnouncementEvent {
   id: string;
@@ -110,6 +119,12 @@ export interface Preferences {
   speechProvider: "device" | "gemini";
   voiceEn: string;
   voiceMl: string;
+  geminiModel: string;
+  geminiVoiceEn: string;
+  geminiVoiceMl: string;
+  chime: boolean;
+  liveAudio: boolean;
+  summaryMode: "live" | "reusable";
 }
 export interface Workspace {
   version: 1;

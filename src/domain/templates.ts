@@ -1,6 +1,33 @@
 import type { AnnouncementTemplate } from "./models";
 export const templates: AnnouncementTemplate[] = [
   {
+    id: "stop-approach",
+    title: "Approaching a stop",
+    description: "Prepare passengers for the selected stop.",
+    category: "Stops & breaks",
+    icon: "pin",
+    en: "We are approaching {stopName}, our next scheduled stop. Passengers using this stop, please get ready. Remain seated until the bus comes to a complete stop and follow the crew’s instructions.",
+    ml: "നമ്മുടെ അടുത്ത സ്റ്റോപ്പായ {stopName} അടുത്തെത്തുകയാണ്. ഈ സ്റ്റോപ്പ് ഉപയോഗിക്കുന്ന യാത്രക്കാർ തയ്യാറാകുക. ബസ് പൂർണ്ണമായി നിർത്തുന്നതുവരെ സീറ്റിൽ തുടരുകയും ജീവനക്കാരുടെ നിർദ്ദേശങ്ങൾ പാലിക്കുകയും ചെയ്യുക.",
+  },
+  {
+    id: "stop-boarding",
+    title: "Boarding stop",
+    description: "Welcome passengers at this boarding point.",
+    category: "Stops & breaks",
+    icon: "bus",
+    en: "We have stopped at {stopName} for boarding. Welcome aboard. Please find your assigned seat or berth, keep the aisle clear, and contact the crew if you need help.",
+    ml: "യാത്രക്കാരെ കയറ്റുന്നതിനായി {stopName} എന്ന സ്ഥലത്ത് നിർത്തിയിരിക്കുകയാണ്. സ്വാഗതം. നിങ്ങളുടെ സീറ്റിലോ ബർത്തിലോ ഇരിക്കുക. ഇടനാഴി തടസ്സപ്പെടുത്തരുത്. സഹായത്തിന് ജീവനക്കാരെ സമീപിക്കുക.",
+  },
+  {
+    id: "stop-dropoff",
+    title: "Drop-off stop",
+    description: "Confirm this drop-off without ending the whole journey.",
+    category: "Stops & breaks",
+    icon: "flag",
+    en: "We have arrived at {stopName}. Passengers getting off here, please check your seat or berth and take all your belongings. Be careful when leaving the bus. Other passengers, please remain on board.",
+    ml: "നമ്മൾ {stopName} എന്ന സ്ഥലത്ത് എത്തിയിരിക്കുന്നു. ഇവിടെ ഇറങ്ങുന്ന യാത്രക്കാർ നിങ്ങളുടെ സീറ്റോ ബർത്തോ പരിശോധിച്ച് എല്ലാ സാധനങ്ങളും എടുക്കുക. ബസിൽ നിന്ന് ഇറങ്ങുമ്പോൾ ശ്രദ്ധിക്കുക. മറ്റു യാത്രക്കാർ ബസിൽ തുടരുക.",
+  },
+  {
     id: "welcome",
     title: "Welcome aboard",
     description: "A warm welcome. A good journey ahead.",
