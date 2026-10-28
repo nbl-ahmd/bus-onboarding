@@ -13,6 +13,7 @@ export function QuickAnnouncements({
   disabled,
   gestures,
   readiness,
+  reviewIds = [],
 }: {
   templates: AnnouncementTemplate[];
   onPlay: (template: AnnouncementTemplate) => void;
@@ -21,6 +22,7 @@ export function QuickAnnouncements({
   disabled: boolean;
   gestures: boolean;
   readiness: Record<string, boolean>;
+  reviewIds?: string[];
 }) {
   const root = useRef<HTMLDivElement>(null);
   const identity = templates.map((t) => t.id).join(",");
@@ -56,6 +58,7 @@ export function QuickAnnouncements({
           disabled={disabled}
           gestures={gestures}
           ready={readiness[template.id]}
+          review={reviewIds.includes(template.id)}
         />
       ))}
     </div>
@@ -69,6 +72,7 @@ function QuickRow({
   disabled,
   gestures,
   ready,
+  review,
 }: {
   template: AnnouncementTemplate;
   onPlay: (template: AnnouncementTemplate) => void;
@@ -77,6 +81,7 @@ function QuickRow({
   disabled: boolean;
   gestures: boolean;
   ready?: boolean;
+  review: boolean;
 }) {
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
   const origin = useRef({ x: 0, y: 0 });
@@ -151,7 +156,13 @@ function QuickRow({
           ) : (
             <>
               <small className={ready ? "ready" : ""}>
-                {ready === undefined ? "" : ready ? "Ready" : "Add audio"}
+                {ready
+                  ? "Ready"
+                  : review
+                    ? "Review audio"
+                    : ready === undefined
+                      ? ""
+                      : "Add audio"}
               </small>
               <Play size={18} fill="currentColor" />
             </>

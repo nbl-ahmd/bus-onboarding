@@ -1,8 +1,11 @@
 import type { Language, Preferences } from "@/domain/models";
-import { audioKey, audioRepository } from "./storage";
+import { audioKey, audioRepository, type AudioRecord } from "./storage";
 import { queueSpeech } from "./speech-queue";
 import { authHeaders } from "./supabase";
 export interface SpeechProvider {
+  readonly origin?: "gemini" | "live";
+  readonly transcript?: string;
+  dispose?(): void;
   synthesize(
     text: string,
     language: Language,
@@ -10,6 +13,7 @@ export interface SpeechProvider {
   ): Promise<Blob>;
 }
 export class GeminiSpeechProvider implements SpeechProvider {
+  readonly origin = "gemini" as const;
   constructor(
     private voice?: string,
     private model?: string,
@@ -40,7 +44,9 @@ export class GeminiSpeechProvider implements SpeechProvider {
     }, signal);
   }
 }
-export async function findAudio(
+export const isAudioApproved = (record: AudioRecord) =>
+  record.origin !== "live" || record.reviewStatus === "approved";
+export async function findPreparedAudio(
   text: string,
   language: Language,
   fleetId: string,
@@ -53,6 +59,16 @@ export async function findAudio(
     uploaded ||
     audioRepository.get(await audioKey(text, language, variant, fleetId))
   );
+}
+/** Pending Live recordings are deliberately excluded from bus playback. */
+export async function findAudio(
+  text: string,
+  language: Language,
+  fleetId: string,
+  variant: string,
+) {
+  const record = await findPreparedAudio(text, language, fleetId, variant);
+  return record && isAudioApproved(record) ? record : undefined;
 }
 export interface PlaybackAdapter {
   stop(): void;

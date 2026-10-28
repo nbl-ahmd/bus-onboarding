@@ -8,21 +8,42 @@ import {
   Trash2,
   HardDrive,
   RefreshCw,
+  Check,
+  LoaderCircle,
 } from "lucide-react";
 import { audioRepository, type AudioRecord } from "@/adapters/storage";
+import { isAudioApproved } from "@/adapters/speech";
+import { transcriptMatches } from "@/domain/live-speech";
 import { EmptyState, errorMessage } from "./ui";
 export function AudioLibrary({
   fleetId,
   revision,
   notify,
+  onChange,
+  preparing = false,
+  preparationLabel,
+  onCancel,
+  onRegenerate,
 }: {
   fleetId: string;
   revision: number;
   notify: (message: string) => void;
+  onChange: (record?: AudioRecord) => void;
+  preparing?: boolean;
+  preparationLabel?: string;
+  onCancel: () => void;
+  onRegenerate: (record: AudioRecord) => void;
 }) {
   const [records, setRecords] = useState<AudioRecord[]>([]);
   const [playing, setPlaying] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [heard, setHeard] = useState<Set<string>>(new Set());
+  const [approving, setApproving] = useState("");
+  const pendingCount = records.filter(
+    (record) => !isAudioApproved(record),
+  ).length;
+  const version = (record: AudioRecord) =>
+    `${record.key}:${record.recordingId || record.createdAt}`;
   const [confirm, setConfirm] = useState("");
   const player = useRef<HTMLAudioElement | null>(null);
   const url = useRef("");
@@ -32,7 +53,11 @@ export function AudioLibrary({
       setRecords(
         records
           .filter((r) => r.fleetId === fleetId)
-          .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+          .sort(
+            (a, b) =>
+              Number(isAudioApproved(a)) - Number(isAudioApproved(b)) ||
+              b.createdAt.localeCompare(a.createdAt),
+          ),
       );
     } catch (err) {
       notify(errorMessage(err));
@@ -45,7 +70,11 @@ export function AudioLibrary({
         setRecords(
           records
             .filter((r) => r.fleetId === fleetId)
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+            .sort(
+              (a, b) =>
+                Number(isAudioApproved(a)) - Number(isAudioApproved(b)) ||
+                b.createdAt.localeCompare(a.createdAt),
+            ),
         );
     });
     return () => {
@@ -56,6 +85,10 @@ export function AudioLibrary({
   }, [fleetId, revision]);
   function stop() {
     player.current?.pause();
+    if (player.current) {
+      player.current.onended = null;
+      player.current.onerror = null;
+    }
     setPlaying("");
     if (url.current) URL.revokeObjectURL(url.current);
   }
@@ -64,13 +97,46 @@ export function AudioLibrary({
     url.current = URL.createObjectURL(record.blob);
     const audio = new Audio(url.current);
     player.current = audio;
-    audio.onended = stop;
+    audio.onended = () => {
+      setHeard((previous) => new Set([...previous, version(record)]));
+      stop();
+    };
+    audio.onerror = () => {
+      stop();
+      notify(
+        "This recording could not be played. Try a different format or prepare it again.",
+      );
+    };
     setPlaying(record.key);
     try {
       await audio.play();
     } catch {
       stop();
       notify("This audio format could not be played on this phone.");
+    }
+  }
+  async function approve(record: AudioRecord) {
+    if (!heard.has(version(record)) || playing || preparing) return;
+    setApproving(record.key);
+    try {
+      const current = await audioRepository.get(record.key);
+      if (!current || version(current) !== version(record))
+        throw new Error(
+          "This clip changed. Listen to the latest recording before approval.",
+        );
+      const approved: AudioRecord = {
+        ...current,
+        reviewStatus: "approved",
+        reviewedAt: new Date().toISOString(),
+      };
+      await audioRepository.put(approved);
+      await refresh();
+      onChange(approved);
+      notify("Voice approved for bus playback. Your trip step is unchanged.");
+    } catch (error) {
+      notify(errorMessage(error));
+    } finally {
+      setApproving("");
     }
   }
   function download(record: AudioRecord) {
@@ -114,6 +180,9 @@ export function AudioLibrary({
           language: record.language,
           text: record.text,
           createdAt: record.createdAt,
+          origin: record.origin,
+          reviewStatus: record.reviewStatus,
+          transcript: record.transcript,
         });
       }
       files["scripts.json"] = strToU8(JSON.stringify(manifest, null, 2));
@@ -135,11 +204,19 @@ export function AudioLibrary({
     }
   }
   return (
-    <section className="surface">
+    <section className="surface audio-library-panel">
       <div className="panel-heading">
         <div>
-          <h2>Ready when the signal isn’t</h2>
-          <p>Saved recordings and prepared voices on this phone.</p>
+          <h2>
+            {pendingCount
+              ? "Review your voices"
+              : "Ready when the signal isn’t"}
+          </h2>
+          <p>
+            {pendingCount
+              ? `${pendingCount} Live ${pendingCount === 1 ? "clip needs" : "clips need"} approval. Listen to each full clip, check its wording, names and times, then approve for bus playback.`
+              : "Saved recordings and prepared voices on this phone."}
+          </p>
         </div>
         <div className="button-row">
           <button
@@ -155,10 +232,20 @@ export function AudioLibrary({
           </button>
         </div>
       </div>
+      {preparing ? (
+        <div className="library-preparation">
+          <LoaderCircle size={16} className="spin" />
+          <span>{preparationLabel || "Preparing voices…"}</span>
+          <button className="text-button" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      ) : null}
       <div className="storage-summary">
         <HardDrive size={19} />
         <span>
-          <strong>{records.length}</strong> audio files
+          <strong>{records.length - pendingCount}</strong> ready
+          {pendingCount ? ` · ${pendingCount} to review` : ""}
         </span>
         <span>
           {(records.reduce((s, r) => s + r.blob.size, 0) / 1024 / 1024).toFixed(
@@ -175,13 +262,17 @@ export function AudioLibrary({
       ) : (
         <div className="audio-list">
           {records.map((record) => (
-            <article className="audio-row" key={record.key}>
+            <article
+              className={`audio-row ${!isAudioApproved(record) ? "needs-review" : ""}`}
+              key={record.key}
+            >
               <button
+                disabled={preparing}
                 className={`audio-play ${playing === record.key ? "active" : ""}`}
                 aria-label={
                   playing === record.key
                     ? "Stop recording"
-                    : `Play ${record.title} in ${record.language === "ml" ? "Malayalam" : "English"}`
+                    : `${isAudioApproved(record) ? "Play" : "Review"} ${record.title} in ${record.language === "ml" ? "Malayalam" : "English"}`
                 }
                 onClick={() => (playing === record.key ? stop() : play(record))}
               >
@@ -195,12 +286,73 @@ export function AudioLibrary({
                 <strong>{record.title}</strong>
                 <span>
                   {record.language === "ml" ? "Malayalam" : "English"} ·{" "}
-                  {record.origin === "gemini"
-                    ? "Gemini voice"
-                    : "Your recording"}{" "}
+                  {record.origin === "live"
+                    ? "Gemini Live"
+                    : record.origin === "gemini"
+                      ? "Dedicated TTS"
+                      : "Your recording"}{" "}
                   · {new Date(record.createdAt).toLocaleDateString("en-IN")}
                 </span>
                 <p lang={record.language}>{record.text}</p>
+                {record.origin === "live" ? (
+                  <>
+                    <span
+                      className={`review-status ${isAudioApproved(record) ? "approved" : "pending"}`}
+                    >
+                      {isAudioApproved(record)
+                        ? "Approved for bus playback"
+                        : "Review required · unavailable for bus playback"}
+                    </span>
+                    <details className="transcript-comparison">
+                      <summary>
+                        {record.transcript
+                          ? transcriptMatches(record.text, record.transcript)
+                            ? "Transcript matches the script · listen to confirm pronunciation"
+                            : "Transcript differs · check against the script"
+                          : "No transcript returned · check the full recording"}
+                      </summary>
+                      <p lang={record.language}>
+                        {record.transcript ||
+                          "Compare the recording with the script above. Transcript checks do not replace listening."}
+                      </p>
+                    </details>
+                    {!isAudioApproved(record) ? (
+                      <div className="review-actions">
+                        <button
+                          className="button primary"
+                          aria-label={`Approve ${record.title} in ${record.language === "en" ? "English" : "Malayalam"}`}
+                          disabled={
+                            preparing ||
+                            !heard.has(version(record)) ||
+                            Boolean(playing) ||
+                            Boolean(approving)
+                          }
+                          onClick={() => approve(record)}
+                        >
+                          <Check size={16} />
+                          {approving === record.key
+                            ? "Approving…"
+                            : "Approve for bus"}
+                        </button>
+                        <button
+                          className="button secondary"
+                          aria-label={`Regenerate ${record.title} in ${record.language === "en" ? "English" : "Malayalam"}`}
+                          disabled={
+                            preparing || Boolean(playing) || Boolean(approving)
+                          }
+                          onClick={() => onRegenerate(record)}
+                        >
+                          <RefreshCw size={16} /> Regenerate clip
+                        </button>
+                        <span className="field-help">
+                          {heard.has(version(record))
+                            ? "Approve only if wording, names and times are correct. Regenerate just this clip if it needs a correction."
+                            : "Play the full clip to enable approval."}
+                        </span>
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
               </div>
               <div className="button-row">
                 <button
@@ -218,7 +370,10 @@ export function AudioLibrary({
                       await audioRepository.remove(record.key);
                       setConfirm("");
                       await refresh();
-                      notify("Recording removed from this phone.");
+                      onChange();
+                      notify(
+                        "Recording removed from this phone. Prepare again to regenerate this clip.",
+                      );
                     }}
                   >
                     Delete file

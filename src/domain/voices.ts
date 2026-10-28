@@ -1,3 +1,4 @@
+import { DEFAULT_LIVE_MODEL } from "./live-speech";
 import type { Language, Preferences, ServiceConfig } from "./models";
 export const DEFAULT_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 export const TTS_MODELS = [
@@ -26,9 +27,11 @@ export function cloudVoice(
   );
 }
 export function speechVariant(
-  config: Pick<ServiceConfig, "voice" | "model">,
+  config: Pick<ServiceConfig, "voice" | "model" | "liveModel">,
   prefs: Preferences,
   language: Language,
 ) {
-  return `gemini:${prefs.geminiModel || config.model}:${cloudVoice(config, prefs, language)}`;
+  return prefs.preparationProvider === "gemini"
+    ? `gemini:${prefs.geminiModel || config.model}:${cloudVoice(config, prefs, language)}`
+    : `live:${prefs.liveModel || config.liveModel || DEFAULT_LIVE_MODEL}:${cloudVoice(config, prefs, language)}`;
 }

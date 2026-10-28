@@ -169,3 +169,7 @@ The guide uses the existing blue/green palette and locally bundled type. Current
 Stops are an ordered editor with a location field, type, optional IST time and duration. The handle supports desktop dragging; explicit up/down controls remain available on touch screens and keyboards. Stop IDs stay stable when reordered. Up to 200 stops are supported. The guide, template rendering, voice generation and storage remain separate modules so future geofence or traffic triggers can supply the same announcement events.
 
 Settings exposes English/Malayalam cloud voices, an allowlisted model choice, a local two-note chime, live generation and reusable/live summary modes. Preparation offers a whole-trip scope. Offline state and app updates use small, contextual notices; an update never reloads during active playback or audio preparation.
+
+## Voice review
+
+Generation settings now separate playback policy from the preparation provider. Live is the default preparation engine; dedicated TTS and device fallback remain explicit choices. The library promotes pending recordings above approved files, shows the full script and optional transcript, and enables Approve for bus only after full playback. An approval never comes from an automatic transcript match. Each replacement has a new recording identity and must be heard again. Regenerate clip affects only that recording. On phones, the library heading and explanation occupy a full row above the download/refresh actions; playback, approval and regeneration retain visible controls.

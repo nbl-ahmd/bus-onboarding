@@ -1,3 +1,4 @@
+import { DEFAULT_LIVE_MODEL } from "./live-speech";
 import { DEFAULT_TTS_MODEL } from "./voices";
 import type { Workspace } from "./models";
 import { templates } from "./templates";
@@ -71,6 +72,8 @@ export function createWorkspace(): Workspace {
       speechProvider: "device",
       voiceEn: "",
       voiceMl: "",
+      preparationProvider: "live",
+      liveModel: DEFAULT_LIVE_MODEL,
       geminiModel: DEFAULT_TTS_MODEL,
       geminiVoiceEn: "",
       geminiVoiceMl: "",

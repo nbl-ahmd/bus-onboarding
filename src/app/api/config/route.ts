@@ -1,3 +1,4 @@
+import { DEFAULT_LIVE_MODEL } from "@/domain/live-speech";
 import { DEFAULT_TTS_MODEL } from "@/domain/voices";
 export async function GET() {
   return Response.json(
@@ -7,6 +8,8 @@ export async function GET() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       ),
       gemini: Boolean(process.env.GEMINI_API_KEY),
+      live: Boolean(process.env.GEMINI_API_KEY),
+      liveModel: process.env.GEMINI_LIVE_MODEL || DEFAULT_LIVE_MODEL,
       pilotCode: Boolean(process.env.PILOT_ACCESS_CODE),
       weather: Boolean(process.env.WEATHER_CONTACT),
       voice: process.env.GEMINI_TTS_VOICE || "Kore",

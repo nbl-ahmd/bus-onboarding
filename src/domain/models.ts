@@ -119,6 +119,8 @@ export interface Preferences {
   speechProvider: "device" | "gemini";
   voiceEn: string;
   voiceMl: string;
+  preparationProvider: "live" | "gemini";
+  liveModel: string;
   geminiModel: string;
   geminiVoiceEn: string;
   geminiVoiceMl: string;
@@ -157,6 +159,8 @@ export interface ServiceConfig {
   weather: boolean;
   voice: string;
   model: string;
+  live?: boolean;
+  liveModel?: string;
 }
 export const languagesFor = (mode: LanguageMode): Language[] =>
   mode === "ml-en" ? ["ml", "en"] : mode === "en-ml" ? ["en", "ml"] : [mode];

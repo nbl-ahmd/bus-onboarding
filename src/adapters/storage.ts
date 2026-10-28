@@ -11,7 +11,13 @@ export interface AudioRecord {
   language: Language;
   title: string;
   text: string;
-  origin: "gemini" | "uploaded";
+  origin: "gemini" | "uploaded" | "live";
+  recordingId?: string;
+  reviewStatus?: "pending" | "approved";
+  reviewedAt?: string;
+  transcript?: string;
+  model?: string;
+  voice?: string;
 }
 interface PilotDB extends DBSchema {
   workspaces: { key: string; value: Workspace };

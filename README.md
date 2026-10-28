@@ -65,12 +65,31 @@ Copy `.env.example` to `.env.local` and restart the server. Never commit secrets
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon/publishable key; protected by RLS                                                   |
 | `SUPABASE_SERVICE_ROLE_KEY`     | Server-only admin key, needed only to create real driver accounts                               |
 | `GEMINI_API_KEY`                | Server-only Gemini Developer API key                                                            |
-| `GEMINI_TTS_MODEL`              | Eligible speech model in your AI Studio project; defaults to `gemini-3.8-flash-lite-tts`     |
+| `GEMINI_LIVE_MODEL`             | Live fallback model; defaults to `gemini-3.8-live`                                              |
+| `GEMINI_TTS_MODEL`              | Eligible speech model in your AI Studio project; defaults to `gemini-3.8-flash-lite-tts`        |
 | `GEMINI_TTS_VOICE`              | Compatible prebuilt voice, defaults to `Kore`                                                   |
 | `PILOT_ACCESS_CODE`             | Optional shared secret of at least 12 characters to unlock Gemini when testing without Supabase |
 | `WEATHER_CONTACT`               | Your public support URL/email identifying the app to MET Norway                                 |
 
-### Gemini voices
+### Live voice preparation · default
+
+Choose **Settings → Audio generation service → Gemini Live**. This is the default preparation engine for existing and new phones that have not chosen another engine. Playback remains a separate preference: Device voices allows device fallback; Saved voices only requires a matching prepared recording.
+
+Live uses the existing server-only `GEMINI_API_KEY`; `GEMINI_LIVE_MODEL` optionally sets the server fallback (default `gemini-3.8-live`). The app also offers the 2.5 Native Audio model in Settings. No microphone permission, extra API key, paid Maps integration or database migration is required. Model availability and free-tier eligibility remain properties of the Google project.
+
+1. Sign in to the fleet or unlock the pilot voice service using the existing access code.
+2. Choose **Download trip audio** or **Prepare voice**. Languages are grouped during preparation so a bounded connection can record several independent clips.
+3. Review clips in **Audio library**. The expected script and optional output transcript appear beside each clip. Play the full recording, check wording/names/times and pronunciation, then choose **Approve for bus**. Transcript matching is an aid, never automatic approval.
+4. Incorrect output can be regenerated one clip at a time. Regeneration skips the local/fleet copy, keeps other files, and requires fresh listening/approval. Failed or cancelled regeneration keeps the previous clip.
+5. Approved files work offline and repeated playback uses no generation requests. Pending Live clips are excluded from announcement readiness, playback and trip advancement. A new Live clip made on demand opens the review screen instead of broadcasting automatically.
+
+The browser receives a single-use, five-minute token through authenticated `/api/live/session`. The token is restricted to the chosen model, voice, audio output and announcement instructions. The permanent API key stays on Vercel. Audio travels directly over the constrained Google Live WebSocket endpoint, avoiding a long-running Vercel WebSocket proxy. The installed SDK's ephemeral-token transport uses `v1alpha`; token provisioning and the browser connection use the same version.
+
+Each complete turn is assembled as its own 24 kHz mono WAV, with its transcript and review state stored in IndexedDB. Connections rotate after six clips, three minutes or a language change; batches close them at completion/cancellation. Incomplete/interrupted recordings are discarded. A stopped batch can be restarted to skip already saved files, including pending review files. Only approved Live clips are uploaded to the private fleet bucket; another phone must review its downloaded copy before bus playback.
+
+Live's request limits are separate from dedicated TTS, so preparation does not use the TTS 21-second queue or `consume_speech_quota` counter. Token/session limits, model access and provider free-tier terms still apply. The token endpoint uses the existing trusted fleet/pilot authorization and does not claim a distributed Live-session billing quota. Existing dedicated TTS files are kept; selecting Dedicated TTS reuses matching files without generating them again.
+
+### Dedicated TTS alternative
 
 Use a free-tier-enabled **Gemini Developer API** project. Model availability, language coverage, quotas and provider terms must be checked in your account. Flash-Lite 3.8 uses the documented `interactions` speech endpoint; the legacy 2.5 model remains available through `generateContent`. Settings lets the crew select an allowlisted model and independent English/Malayalam prebuilt voices. Device voices remain the option without API quotas. Google AI Studio currently shows 3 requests/minute and 10 requests/day for the available free TTS models in the inspected project; switching models does not guarantee a larger quota. Requests from this phone are spaced at least 21 seconds apart.
 

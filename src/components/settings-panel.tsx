@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { Preferences, ServiceConfig } from "@/domain/models";
 import { errorMessage } from "./ui";
+import { LIVE_MODELS } from "@/domain/live-speech";
 import { GEMINI_VOICES, TTS_MODELS } from "@/domain/voices";
 import { SequenceControls } from "./playback-sequence";
 export function SettingsPanel({
@@ -81,7 +82,9 @@ export function SettingsPanel({
             }
           >
             <option value="device">Device voices · no API needed</option>
-            <option value="gemini">Gemini · prepare audio online</option>
+            <option value="gemini">
+              Saved voices only · prepare before departure
+            </option>
           </select>
           <span className="field-help">
             Matching saved recordings always play first. Download the trip
@@ -89,7 +92,51 @@ export function SettingsPanel({
             announcements.
           </span>
         </label>
-        {p.speechProvider === "gemini" ? (
+        <label>
+          Audio generation service
+          <select
+            aria-label="Audio generation service"
+            value={p.preparationProvider}
+            onChange={(e) =>
+              update({
+                ...p,
+                preparationProvider: e.target
+                  .value as Preferences["preparationProvider"],
+              })
+            }
+          >
+            <option value="live">
+              Gemini Live · prepare, review and reuse
+            </option>
+            <option value="gemini">
+              Dedicated TTS · exact-script alternative
+            </option>
+          </select>
+          <span className="field-help">
+            Live uses separate quotas from TTS. Every new Live clip must be
+            listened to and approved in Audio library before bus playback. Saved
+            audio works offline.
+          </span>
+        </label>
+        {p.preparationProvider === "live" ? (
+          <label>
+            Live speech model
+            <select
+              value={p.liveModel}
+              onChange={(e) => update({ ...p, liveModel: e.target.value })}
+            >
+              {LIVE_MODELS.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+            <span className="field-help">
+              Token and session limits still apply. The app closes its
+              connection after preparation; no microphone is used.
+            </span>
+          </label>
+        ) : (
           <label>
             Speech model
             <select
@@ -108,35 +155,33 @@ export function SettingsPanel({
               project’s limits in Google AI Studio.
             </span>
           </label>
-        ) : null}
-        {p.speechProvider === "gemini" ? (
-          <div className="form-grid">
-            {(["en", "ml"] as const).map((lang) => (
-              <label key={lang}>
-                {lang === "en" ? "English" : "Malayalam"} announcement voice
-                <select
-                  value={
-                    (lang === "en" ? p.geminiVoiceEn : p.geminiVoiceMl) || ""
-                  }
-                  onChange={(e) =>
-                    update({
-                      ...p,
-                      [lang === "en" ? "geminiVoiceEn" : "geminiVoiceMl"]:
-                        e.target.value,
-                    })
-                  }
-                >
-                  <option value="">Fleet default · {config.voice}</option>
-                  {GEMINI_VOICES.map((voice) => (
-                    <option key={voice.id} value={voice.id}>
-                      {voice.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        ) : null}
+        )}
+        <div className="form-grid">
+          {(["en", "ml"] as const).map((lang) => (
+            <label key={lang}>
+              {lang === "en" ? "English" : "Malayalam"} announcement voice
+              <select
+                value={
+                  (lang === "en" ? p.geminiVoiceEn : p.geminiVoiceMl) || ""
+                }
+                onChange={(e) =>
+                  update({
+                    ...p,
+                    [lang === "en" ? "geminiVoiceEn" : "geminiVoiceMl"]:
+                      e.target.value,
+                  })
+                }
+              >
+                <option value="">Fleet default · {config.voice}</option>
+                {GEMINI_VOICES.map((voice) => (
+                  <option key={voice.id} value={voice.id}>
+                    {voice.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
         <div className="setting-toggle">
           <div>
             <strong>Announcement chime</strong>
@@ -156,8 +201,9 @@ export function SettingsPanel({
           <div>
             <strong>Generate changed audio live</strong>
             <span>
-              With Gemini selected and internet available, prepare missing
-              voices on tap. Saved voices never use quota.
+              With Saved voices selected, prepare missing audio on tap while
+              online. New Live clips go to review before playback. Saved clips
+              never use generation quota.
             </span>
           </div>
           <input
@@ -351,8 +397,11 @@ export function SettingsPanel({
             </span>
           </div>
           <p className="field-help">
-            Speech model: {p.geminiModel || config.model || "loading…"}.
-            Free-tier availability and quotas are set by your Google AI Studio
+            Speech model:{" "}
+            {p.preparationProvider === "live"
+              ? p.liveModel || config.liveModel
+              : p.geminiModel || config.model || "loading…"}
+            . Free-tier availability and quotas are set by your Google AI Studio
             project.
           </p>
           <div className="integration-row">

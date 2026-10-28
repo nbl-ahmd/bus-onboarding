@@ -76,12 +76,14 @@ import {
 import { haptics } from "@/adapters/haptics";
 import { SequenceDialog } from "./playback-sequence";
 import { QuickAnnouncements } from "./quick-announcements";
-import { audioKey, audioRepository } from "@/adapters/storage";
 import {
   BrowserPlaybackAdapter,
   findAudio,
-  GeminiSpeechProvider,
+  findPreparedAudio,
+  isAudioApproved,
 } from "@/adapters/speech";
+import type { AudioRecord } from "@/adapters/storage";
+import { AudioPreparer } from "@/adapters/prepare-audio";
 import { MetNorwayWeatherProvider } from "@/adapters/weather";
 import { getSupabase } from "@/adapters/supabase";
 import { useWorkspace } from "@/lib/use-workspace";
@@ -100,7 +102,7 @@ import {
   type AudioTask,
   type JourneyStep,
 } from "@/domain/journey";
-import { cloudVoice, speechVariant } from "@/domain/voices";
+import { speechVariant } from "@/domain/voices";
 import { TripEditor } from "./trip-editor";
 import { AccountDialog } from "./account-dialog";
 import { FleetPanel } from "./fleet-panel";
@@ -242,6 +244,7 @@ export function WorkspaceApp() {
   const [playingTemplateId, setPlayingTemplateId] = useState<string | null>(
     null,
   );
+  const [quickReviewIds, setQuickReviewIds] = useState<string[]>([]);
   const [quickReadiness, setQuickReadiness] = useState<Record<string, boolean>>(
     {},
   );
@@ -269,16 +272,25 @@ export function WorkspaceApp() {
   const variant = JSON.stringify([
     config.model,
     config.voice,
+    config.liveModel,
     w?.preferences.geminiVoiceEn,
     w?.preferences.geminiVoiceMl,
     w?.preferences.geminiModel,
+    w?.preferences.preparationProvider,
+    w?.preferences.liveModel,
   ]);
   const voiceVariant = useCallback(
     (language: Language) =>
       speechVariant(
-        { model: config.model, voice: config.voice },
+        {
+          model: config.model,
+          voice: config.voice,
+          liveModel: config.liveModel,
+        },
         {
           geminiModel: w?.preferences.geminiModel,
+          preparationProvider: w?.preferences.preparationProvider,
+          liveModel: w?.preferences.liveModel,
           geminiVoiceEn: w?.preferences.geminiVoiceEn,
           geminiVoiceMl: w?.preferences.geminiVoiceMl,
         } as Preferences,
@@ -287,9 +299,12 @@ export function WorkspaceApp() {
     [
       config.model,
       config.voice,
+      config.liveModel,
       w?.preferences.geminiVoiceEn,
       w?.preferences.geminiVoiceMl,
       w?.preferences.geminiModel,
+      w?.preferences.preparationProvider,
+      w?.preferences.liveModel,
     ],
   );
   const effectiveFacts =
@@ -348,7 +363,7 @@ export function WorkspaceApp() {
   );
   const requestedLanguages = languagesFor(languageMode);
   const allReady = requestedLanguages.every((l) => ready.includes(l));
-  const canGenerateLive = Boolean(
+  const canPrepareOnTap = Boolean(
     online &&
     config.gemini &&
     prefs?.speechProvider === "gemini" &&
@@ -458,7 +473,7 @@ export function WorkspaceApp() {
         const files = await Promise.all(
           langs.map(async (language) => ({
             language,
-            audio: await findAudio(
+            audio: await findPreparedAudio(
               spoken[language],
               language,
               w.fleet.id,
@@ -470,15 +485,25 @@ export function WorkspaceApp() {
           template.id,
           getPlaybackReadiness(
             langs,
-            files.filter((file) => file.audio).map((file) => file.language),
+            files
+              .filter((file) => file.audio && isAudioApproved(file.audio))
+              .map((file) => file.language),
             voices.map((voice) => voice.lang),
             w.preferences.speechProvider,
           ).canPlay,
+          files.some((file) => file.audio && !isAudioApproved(file.audio)),
         ] as const;
       }),
     )
       .then((entries) => {
-        if (alive) setQuickReadiness(Object.fromEntries(entries));
+        if (alive) {
+          setQuickReadiness(
+            Object.fromEntries(entries.map(([id, ready]) => [id, ready])),
+          );
+          setQuickReviewIds(
+            entries.filter((entry) => entry[2]).map((entry) => entry[0]),
+          );
+        }
       })
       .catch(() => {});
     return () => {
@@ -749,6 +774,14 @@ export function WorkspaceApp() {
     let source: AnnouncementEvent["source"] = "saved-audio";
     let status: AnnouncementEvent["status"] = "played";
     let detail = "";
+    let reviewRequired = false;
+    let needsReview = false;
+    const preparer = new AudioPreparer(
+      w.fleet.id,
+      w.preferences,
+      config,
+      Boolean(identity && online),
+    );
     try {
       const items: { text: string; language: Language; blob?: Blob }[] = [];
       for (const language of languagesFor(w.preferences.languageMode)) {
@@ -776,28 +809,28 @@ export function WorkspaceApp() {
             );
             const controller = new AbortController();
             abort.current = controller;
-            const blob = await new GeminiSpeechProvider(
-              cloudVoice(config, w.preferences, language),
-              w.preferences.geminiModel || config.model,
-            ).synthesize(text, language, controller.signal);
-            if (playbackCancelled.current) throw new Error("STOPPED");
-            cached = {
-              key: await audioKey(
-                text,
-                language,
-                voiceVariant(language),
-                w.fleet.id,
-              ),
-              blob,
-              language,
+            const result = await preparer.prepare(
               text,
-              fleetId: w.fleet.id,
-              title: triggerEvent.title || template.title,
-              createdAt: new Date().toISOString(),
-              origin: "gemini" as const,
-            };
-            await audioRepository.put(cached);
+              language,
+              triggerEvent.title || template.title,
+              controller.signal,
+            );
+            if (playbackCancelled.current) throw new Error("STOPPED");
+            cached = result.record;
+            if (!isAudioApproved(cached)) needsReview = true;
             setAudioVersion((v) => v + 1);
+          }
+          if (!cached && w.preferences.speechProvider === "gemini") {
+            const prepared = await findPreparedAudio(
+              text,
+              language,
+              w.fleet.id,
+              voiceVariant(language),
+            );
+            if (prepared && !isAudioApproved(prepared)) {
+              cached = prepared;
+              needsReview = true;
+            }
           }
           if (!cached) {
             if (w.preferences.speechProvider === "gemini")
@@ -818,6 +851,7 @@ export function WorkspaceApp() {
         items.push(item);
       }
       if (playbackCancelled.current) throw new Error("STOPPED");
+      if (needsReview) throw new Error("REVIEW_REQUIRED");
       const scheduledItems = buildPlaybackSequence(
         w.preferences.languageMode,
         w.preferences.repetitions,
@@ -837,12 +871,20 @@ export function WorkspaceApp() {
     } catch (err) {
       detail = playbackCancelled.current ? "STOPPED" : errorMessage(err);
       status = detail === "STOPPED" ? "stopped" : "failed";
-      if (status === "failed") {
+      reviewRequired = detail === "REVIEW_REQUIRED";
+      if (reviewRequired) {
+        setPage("library");
+        setShowPreview(false);
+        notify(
+          "New Live voices are saved. Listen and approve them in Audio library, then return to your current trip step.",
+        );
+      } else if (status === "failed") {
         notify(detail);
         if (triggerEvent.journeyStepId) setShowPreview(true);
       }
       if (status === "stopped") abort.current?.abort();
     } finally {
+      preparer.dispose();
       abort.current?.abort();
       abort.current = null;
       operation.current = null;
@@ -850,30 +892,32 @@ export function WorkspaceApp() {
       if (status === "played" && triggerEvent.journeyStepId)
         finishJourneyStep(triggerEvent.journeyStepId);
       setPlayingTemplateId(null);
-      const event: AnnouncementEvent = {
-        id: uid(),
-        tripId: trip.id,
-        fleetId: w.fleet.id,
-        driverId: identity?.id || trip.driverId,
-        templateId: template.id,
-        title: triggerEvent.title || template.title,
-        languageMode: w.preferences.languageMode,
-        sequence: buildPlaybackSequence(
-          w.preferences.languageMode,
-          w.preferences.repetitions,
-          w.preferences.repeatPattern,
-        ),
-        at: new Date().toISOString(),
-        status,
-        source,
-        detail: detail === "STOPPED" ? "Stopped by crew" : detail,
-        trigger: triggerEvent.source,
-      };
-      update((s) => ({ ...s, events: [event, ...s.events].slice(0, 500) }), {
-        kind: "event",
-        id: event.id,
-        payload: event,
-      });
+      if (!reviewRequired) {
+        const event: AnnouncementEvent = {
+          id: uid(),
+          tripId: trip.id,
+          fleetId: w.fleet.id,
+          driverId: identity?.id || trip.driverId,
+          templateId: template.id,
+          title: triggerEvent.title || template.title,
+          languageMode: w.preferences.languageMode,
+          sequence: buildPlaybackSequence(
+            w.preferences.languageMode,
+            w.preferences.repetitions,
+            w.preferences.repeatPattern,
+          ),
+          at: new Date().toISOString(),
+          status,
+          source,
+          detail: detail === "STOPPED" ? "Stopped by crew" : detail,
+          trigger: triggerEvent.source,
+        };
+        update((s) => ({ ...s, events: [event, ...s.events].slice(0, 500) }), {
+          kind: "event",
+          id: event.id,
+          payload: event,
+        });
+      }
     }
   }
   useEffect(() => {
@@ -974,6 +1018,24 @@ export function WorkspaceApp() {
           online
         )
       ) {
+        const prepared = await Promise.all(
+          languages.map((language) =>
+            findPreparedAudio(
+              spoken[language],
+              language,
+              w.fleet.id,
+              voiceVariant(language),
+            ),
+          ),
+        );
+        if (prepared.some((record) => record && !isAudioApproved(record))) {
+          setPage("library");
+          setShowPreview(false);
+          notify(
+            "Listen and approve the prepared Live voices before bus playback.",
+          );
+          return;
+        }
         setShowPreview(true);
         setEditingScript(false);
         notify(
@@ -1071,6 +1133,13 @@ export function WorkspaceApp() {
     abort.current = controller;
     let count = 0;
     let downloaded = 0;
+    let pendingReviews = 0;
+    const preparer = new AudioPreparer(
+      w.fleet.id,
+      w.preferences,
+      config,
+      Boolean(identity && online),
+    );
     try {
       const tasks =
         preparedTasks ||
@@ -1082,13 +1151,14 @@ export function WorkspaceApp() {
           }),
           title: template.title,
         }));
-      for (const task of tasks) {
-        const template = task.template;
-        for (const language of languagesFor(w.preferences.languageMode)) {
+      // Group languages so one bounded Live connection can prepare several clips.
+      for (const language of languagesFor(w.preferences.languageMode)) {
+        for (const task of tasks) {
           if (controller.signal.aborted)
             throw new Error(
               "Preparation cancelled. Completed files remain saved.",
             );
+          const template = task.template;
           const text =
             !preparedTasks && list.length === 1 && template.id === selected?.id
               ? scripts[language]
@@ -1099,63 +1169,37 @@ export function WorkspaceApp() {
                   task.facts,
                   language,
                 );
-          if (
-            await findAudio(text, language, w.fleet.id, voiceVariant(language))
-          )
-            continue;
           setGeneration(
             `${task.title} · ${language === "ml" ? "Malayalam" : "English"}`,
           );
-          const key = await audioKey(
+          const result = await preparer.prepare(
             text,
             language,
-            voiceVariant(language),
-            w.fleet.id,
+            task.title,
+            controller.signal,
           );
-          const remote =
-            identity && online
-              ? await getSupabase()!
-                  .storage.from("announcements")
-                  .download(`${w.fleet.id}/${key}.wav`)
-              : null;
-          const blob =
-            remote?.data ||
-            (await new GeminiSpeechProvider(
-              cloudVoice(config, w.preferences, language),
-              w.preferences.geminiModel || config.model,
-            ).synthesize(text, language, controller.signal));
-          if (remote?.data) downloaded++;
-          await audioRepository.put({
-            key,
-            blob,
-            language,
-            text,
-            fleetId: w.fleet.id,
-            title: task.title,
-            createdAt: new Date().toISOString(),
-            origin: "gemini",
-          });
-          count++;
+          if (!result.reused) count++;
+          if (result.downloaded) downloaded++;
+          if (!isAudioApproved(result.record)) pendingReviews++;
+          if (result.uploadFailed)
+            notify(
+              "Voice saved on this phone. Cloud upload failed; local playback is available.",
+            );
           setAudioVersion((v) => v + 1);
-          if (identity && getSupabase() && !remote?.data) {
-            const result = await getSupabase()!
-              .storage.from("announcements")
-              .upload(`${w.fleet.id}/${key}.wav`, blob, {
-                upsert: true,
-                contentType: "audio/wav",
-              });
-            if (result.error)
-              notify(
-                "Audio saved on this phone. Cloud audio upload failed; you can still play it offline.",
-              );
-          }
         }
       }
-      notify(
-        count
-          ? `${count} ${count === 1 ? "voice file" : "voice files"} saved for offline playback.${downloaded ? ` ${downloaded} reused from your fleet’s audio.` : ""}`
-          : "All selected announcements are already saved on this phone.",
-      );
+      if (pendingReviews) {
+        setPage("library");
+        setShowPreview(false);
+        notify(
+          `${pendingReviews} Live voice ${pendingReviews === 1 ? "clip needs" : "clips need"} review. Listen and approve before bus playback. Existing clips were reused.`,
+        );
+      } else
+        notify(
+          count
+            ? `${count} voice files saved for offline playback.${downloaded ? ` ${downloaded} downloaded from your fleet.` : ""}`
+            : "All selected announcements are already saved on this phone.",
+        );
       setPreparePack(false);
     } catch (err) {
       notify(
@@ -1164,9 +1208,56 @@ export function WorkspaceApp() {
           : errorMessage(err),
       );
     } finally {
+      preparer.dispose();
       operation.current = null;
       setGeneration("");
       abort.current = null;
+      setAudioVersion((v) => v + 1);
+    }
+  }
+  async function regenerateClip(record: AudioRecord) {
+    if (!w || operation.current || playing || generation) return;
+    if (!online || !config.gemini) {
+      notify("Reconnect and unlock the voice service to regenerate this clip.");
+      return;
+    }
+    const settings: Preferences = {
+      ...w.preferences,
+      preparationProvider: record.origin === "live" ? "live" : "gemini",
+      liveModel: record.model || w.preferences.liveModel,
+      geminiModel: record.model || w.preferences.geminiModel,
+      [record.language === "en" ? "geminiVoiceEn" : "geminiVoiceMl"]:
+        record.voice || "",
+    };
+    const preparer = new AudioPreparer(w.fleet.id, settings, config, false);
+    const controller = new AbortController();
+    abort.current = controller;
+    operation.current = "generate";
+    setGeneration(
+      `Regenerating ${record.title} · ${record.language === "en" ? "English" : "Malayalam"}`,
+    );
+    try {
+      await preparer.prepare(
+        record.text,
+        record.language,
+        record.title,
+        controller.signal,
+        true,
+      );
+      notify(
+        "New clip saved. Listen to it again before approving; other voices were kept.",
+      );
+    } catch (error) {
+      notify(
+        controller.signal.aborted
+          ? "Regeneration cancelled. Your previous clip is still saved."
+          : errorMessage(error),
+      );
+    } finally {
+      preparer.dispose();
+      abort.current = null;
+      operation.current = null;
+      setGeneration("");
       setAudioVersion((v) => v + 1);
     }
   }
@@ -1578,6 +1669,7 @@ export function WorkspaceApp() {
                     disabled={playing || Boolean(generation) || !trip}
                     gestures={prefs!.gestures}
                     readiness={quickReadiness}
+                    reviewIds={quickReviewIds}
                   />
                   {!filtered.length ? (
                     <EmptyState icon={Search} title="No announcements found">
@@ -1969,8 +2061,10 @@ export function WorkspaceApp() {
                             {allReady
                               ? "Saved on this phone"
                               : prefs!.speechProvider === "gemini"
-                                ? canGenerateLive
-                                  ? "Will prepare missing audio online"
+                                ? canPrepareOnTap
+                                  ? prefs!.preparationProvider === "gemini"
+                                    ? "Will prepare missing audio online"
+                                    : "New Live clips need review before playback"
                                   : "Prepare audio before playing"
                                 : readiness.canPlay
                                   ? "Device voices ready"
@@ -1984,12 +2078,21 @@ export function WorkspaceApp() {
                                 : "Audio needed"}
                           </span>
                         </div>
-                        {!readiness.canPlay && !canGenerateLive && !playing ? (
+                        {!readiness.canPlay && !canPrepareOnTap && !playing ? (
                           <p className="playback-recovery">
                             {prefs!.speechProvider === "gemini"
                               ? `Prepare or record the missing ${missingNames} audio below.`
                               : `Add a recording or prepare ${missingNames} audio below. You can also change the playback languages.`}
                           </p>
+                        ) : null}
+                        {selected && quickReviewIds.includes(selected.id) ? (
+                          <button
+                            className="button secondary full"
+                            disabled={playing || Boolean(generation)}
+                            onClick={() => navigate("library")}
+                          >
+                            <CheckCheck size={17} /> Review prepared voices
+                          </button>
                         ) : null}
                         <button
                           className={`play-button ${playing ? "is-playing" : ""}`}
@@ -1997,7 +2100,7 @@ export function WorkspaceApp() {
                             Boolean(generation) ||
                             (!playing &&
                               !readiness.canPlay &&
-                              !canGenerateLive) ||
+                              !canPrepareOnTap) ||
                             (!playing &&
                               !scripts.en.trim() &&
                               !scripts.ml.trim())
@@ -2227,6 +2330,31 @@ export function WorkspaceApp() {
             <AudioLibrary
               fleetId={w.fleet.id}
               revision={audioVersion}
+              preparing={Boolean(generation)}
+              preparationLabel={generation}
+              onCancel={() => abort.current?.abort()}
+              onRegenerate={regenerateClip}
+              onChange={(record) => {
+                setAudioVersion((v) => v + 1);
+                if (record && identity && online && getSupabase())
+                  void getSupabase()!
+                    .storage.from("announcements")
+                    .upload(`${w.fleet.id}/${record.key}.wav`, record.blob, {
+                      upsert: true,
+                      contentType: "audio/wav",
+                    })
+                    .then((result) => {
+                      if (result.error)
+                        notify(
+                          "Approved on this phone. Fleet audio upload failed; local playback still works.",
+                        );
+                    })
+                    .catch(() =>
+                      notify(
+                        "Approved on this phone. Reconnect to share the voice with your fleet.",
+                      ),
+                    );
+              }}
               notify={notify}
             />
           ) : null}
@@ -2537,8 +2665,9 @@ export function WorkspaceApp() {
           <div className="form-stack">
             <p className="muted">
               Save the voices for <strong>{tripTitle}</strong> using the current
-              trip details. Internet and a configured Gemini key are needed only
-              for preparation.
+              trip details. Internet is needed for preparation. New Live clips
+              must be listened to and approved in Audio library before they can
+              play on the bus.
             </p>
             <label>
               Which announcements?
@@ -2578,7 +2707,9 @@ export function WorkspaceApp() {
                     : w.templates.filter((t) =>
                         prefs!.favoriteIds.includes(t.id),
                       ).length) * requestedLanguages.length}{" "}
-                voice requests. Existing matching files are reused.
+                voice clips. Existing matching files are reused. Live
+                preparation reuses a connection; dedicated TTS has a separate
+                request quota.
               </span>
             </div>
             <p className="field-help">
